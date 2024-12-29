@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "pdf-processor"
+version = "0.1.0"
+description = "PDF Processor for asynchronous and modular PDF handling"
+authors = ["JeongJaeSoon <94jaesoon.jeong@gmail.com>"]
+license = "Apache 2.0 License"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
