@@ -33,6 +33,7 @@ class PDFWorker:
         try:
             task_id = task_data["task_id"]
             pdf_type = task_data.get("pdf_type", "text")
+            extraction_schema = task_data.get("extraction_schema", {})
 
             # 작업 상태 업데이트
             await self.queue.update_task_status(task_id, TaskStatus.PROCESSING, pdf_type)
@@ -44,10 +45,15 @@ class PDFWorker:
             )
             processor = LLMDataProcessor(api_key=self.openai_api_key)
 
-            # 텍스트 추출 및 처리
+            # 텍스트 추출
             text = extractor.extract_text()
             metadata = extractor.extract_metadata()
-            processed_data = processor.process(text)
+
+            # LLM 처리를 위한 데이터 준비
+            processing_data = {"text": text, "extraction_schema": extraction_schema}
+
+            # 텍스트 처리 및 구조화
+            processed_data = processor.process(processing_data)
             processed_data["metadata"] = metadata
 
             # 결과 저장

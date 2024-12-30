@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "pdf-processor-examples"
+version = "0.1.0"
+description = "Examples for PDF Processor package"
+authors = ["JeongJaeSoon <94jaesoon.jeong@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.13"
+pdf-processor = {path = ".."}  # 로컬 패키지 참조
+python-dotenv = "^1.0.1"
+rich = "^13.7.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api" 
