@@ -32,10 +32,13 @@ class PDFWorker:
         """단일 PDF 처리 작업 수행"""
         try:
             task_id = task_data["task_id"]
-            await self.queue.update_task_status(task_id, TaskStatus.PROCESSING)
+            pdf_type = task_data.get("pdf_type", "text")
+
+            # 작업 상태 업데이트
+            await self.queue.update_task_status(task_id, TaskStatus.PROCESSING, pdf_type)
 
             # 추출기 및 처리기 초기화
-            extractor_class = self._get_extractor_class(task_data.get("pdf_type", "text"))
+            extractor_class = self._get_extractor_class(pdf_type)
             extractor = extractor_class(
                 file_path=task_data["file_path"], password=task_data.get("password")
             )
@@ -49,12 +52,15 @@ class PDFWorker:
 
             # 결과 저장
             await self.queue.store_result(
-                task_id=task_id, result=processed_data, ttl=task_data.get("result_ttl", 3600)
+                task_id=task_id,
+                result=processed_data,
+                ttl=task_data.get("result_ttl", 3600),
+                pdf_type=pdf_type,
             )
 
         except Exception as e:
             print(f"Error processing task: {e}")
-            await self.queue.update_task_status(task_id, TaskStatus.FAILED)
+            await self.queue.update_task_status(task_id, TaskStatus.FAILED, pdf_type)
 
     async def start(self, poll_interval: float = 1.0):
         """작업자 시작"""
