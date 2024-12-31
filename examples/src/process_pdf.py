@@ -116,9 +116,7 @@ async def process_single_pdf(
     pdf_type: str = "text",
     password: str | None = None,
     extraction_schema: str | Dict[str, Any] = "invoice",
-    page_ranges: (
-        list[str] | None
-    ) = None,  # 예: ["1-3", "4", "5", "6-7"] -> 각 요소는 하나의 인보이스에 해당하는 페이지 범위
+    page_ranges: list[str] | None = None,  # 예: ["1-3", "4", "5", "6-7"]
     invoice_count: int | None = None,  # 문서에 포함된 총 인보이스 수 (자동 감지하려면 None)
 ):
     """단일 PDF 파일 처리 예제
@@ -132,20 +130,14 @@ async def process_single_pdf(
                     예: ["1-3", "4", "5", "6-7"]는 4개의 인보이스를 의미하며,
                     첫 번째 인보이스는 1-3페이지, 두 번째는 4페이지,
                     세 번째는 5페이지, 네 번째는 6-7페이지에 있음을 나타냄.
-                    None인 경우 자동으로 인보이스 경계를 감지함.
         invoice_count: 문서에 포함된 총 인보이스 수.
-                      page_ranges가 지정되지 않은 경우에만 사용됨.
-                      None인 경우 자동으로 인보이스 수를 감지함.
+                      단, page_ranges 가 지정된 경우 이 값은 무시됨.
     """
     file_path = Path(file_path)
 
     # 파일 존재 여부 확인
     if not check_file_exists(file_path):
         return
-
-    # page_ranges와 invoice_count가 동시에 지정된 경우 경고
-    if page_ranges and invoice_count:
-        console.print("[bold yellow]경고:[/] page_ranges가 지정된 경우 invoice_count는 무시됩니다.")
 
     # Rich 패널로 작업 정보 표시
     info_text = [
@@ -157,7 +149,7 @@ async def process_single_pdf(
 
     if page_ranges:
         info_text.append(f"페이지 범위: [blue]{page_ranges}[/]")
-    elif invoice_count:
+    if invoice_count:
         info_text.append(f"예상 인보이스 수: [blue]{invoice_count}[/]")
     else:
         info_text.append("인보이스 경계: [blue]자동 감지[/]")
@@ -187,7 +179,7 @@ async def process_single_pdf(
                 "result_ttl": 3600,
                 "extraction_schema": schema,
                 "page_ranges": page_ranges,
-                "invoice_count": invoice_count if not page_ranges else None,
+                "invoice_count": invoice_count,
             }
         )
         console.print(f"[bold green]작업이 등록되었습니다. 작업 ID:[/] [yellow]{task_id}[/]")
