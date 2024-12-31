@@ -1,9 +1,12 @@
 import json
+import logging
 from typing import Any, Dict
 
 from openai import OpenAI
 
 from ..core.base import BaseDataProcessor
+
+logger = logging.getLogger(__name__)
 
 
 class LLMDataProcessor(BaseDataProcessor):
@@ -45,18 +48,19 @@ class LLMDataProcessor(BaseDataProcessor):
 
     def process(self, data: str) -> Dict[str, Any]:
         """LLM을 사용하여 텍스트를 구조화된 데이터로 변환"""
-        # 작업 데이터에서 스키마 추출
-        task_data = json.loads(data) if isinstance(data, str) else data
-        text = task_data.get("text", "")
-        schema = task_data.get("extraction_schema", {})
-        page_ranges = task_data.get("page_ranges")
-        invoice_count = task_data.get("invoice_count")
+        try:
+            # 작업 데이터에서 스키마 추출
+            task_data = json.loads(data) if isinstance(data, str) else data
+            text = task_data.get("text", "")
+            schema = task_data.get("extraction_schema", {})
+            page_ranges = task_data.get("page_ranges")
+            invoice_count = task_data.get("invoice_count")
 
-        # Function calling 설정
-        function_schema = self._create_function_schema(schema)
+            # Function calling 설정
+            function_schema = self._create_function_schema(schema)
 
-        # 시스템 메시지 준비
-        system_message = """
+            # 시스템 메시지 준비
+            system_message = """
 당신은 PDF에서 인보이스 데이터를 추출하는 전문가입니다.
 당신의 역할은 주어진 텍스트에서 인보이스 데이터를 정확하게 추출하는 것입니다.
 
@@ -129,8 +133,8 @@ class LLMDataProcessor(BaseDataProcessor):
 4. 금액 필드의 숫자 타입 확인
 """
 
-        # 사용자 메시지 준비
-        user_message = f"""다음 텍스트에서 인보이스 데이터를 추출해주세요.
+            # 사용자 메시지 준비
+            user_message = f"""다음 텍스트에서 인보이스 데이터를 추출해주세요.
 
 [제약 조건]
 - 페이지 범위: {page_ranges if page_ranges else '자동 감지'}
@@ -146,23 +150,47 @@ class LLMDataProcessor(BaseDataProcessor):
 {text}
 """
 
-        # LLM 호출
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_message},
-                {"role": "user", "content": user_message},
-            ],
-            functions=[function_schema],
-            function_call={"name": "extract_data"},
-            temperature=0.0,  # 결정적인 출력을 위해 temperature를 0으로 설정
-        )
+            try:
+                # LLM 호출
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": system_message},
+                        {"role": "user", "content": user_message},
+                    ],
+                    functions=[function_schema],
+                    function_call={"name": "extract_data"},
+                    temperature=0.0,  # 결정적인 출력을 위해 temperature를 0으로 설정
+                )
 
-        # 결과 파싱
-        function_call = response.choices[0].message.function_call
-        extracted_data = json.loads(function_call.arguments)
+                # 결과 파싱
+                function_call = response.choices[0].message.function_call
+                try:
+                    # JSON 문자열 정리
+                    json_str = function_call.arguments.strip()
+                    # 이스케이프되지 않은 특수 문자 처리
+                    json_str = json_str.replace("\n", "\\n").replace("\r", "\\r")
 
-        return extracted_data
+                    extracted_data = json.loads(json_str)
+                    return extracted_data
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON 파싱 오류: {str(e)}")
+                    logger.error(f"원본 JSON 문자열: {function_call.arguments}")
+
+                    # JSON 파싱 실패 시 기본값 반환
+                    return {
+                        "invoices": [],
+                        "error": f"JSON 파싱 오류: {str(e)}",
+                        "original_response": function_call.arguments,
+                    }
+
+            except Exception as e:
+                logger.error(f"LLM 처리 중 오류 발생: {str(e)}")
+                return {"invoices": [], "error": f"처리 오류: {str(e)}"}
+
+        except Exception as e:
+            logger.error(f"입력 데이터 처리 중 오류 발생: {str(e)}")
+            return {"invoices": [], "error": f"입력 데이터 오류: {str(e)}"}
 
     def validate(self, processed_data: Dict[str, Any]) -> bool:
         """처리된 데이터의 유효성 검증"""
@@ -188,7 +216,7 @@ class LLMDataProcessor(BaseDataProcessor):
 
             return True
         except Exception as e:
-            print(f"Error validating processed data: {e}")
+            logger.error(f"데이터 검증 중 오류 발생: {str(e)}")
             return False
 
     def transform(self, processed_data: Dict[str, Any], output_format: str = "json") -> Any:
@@ -198,4 +226,4 @@ class LLMDataProcessor(BaseDataProcessor):
         elif output_format == "dict":
             return processed_data
         else:
-            raise ValueError(f"Unsupported output format: {output_format}")
+            raise ValueError(f"지원하지 않는 출력 형식: {output_format}")

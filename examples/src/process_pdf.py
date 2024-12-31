@@ -281,6 +281,7 @@ async def main():
         file_path=SAMPLES_DIR / "text/sample_2.pdf",
         pdf_type="text",
         extraction_schema="invoice",
+        invoice_count=2,
     )
 
     # 3. 페이지 범위를 직접 지정하여 처리
