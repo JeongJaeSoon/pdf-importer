@@ -9,10 +9,12 @@ PDF 파일에서 텍스트를 추출하고 LLM을 사용하여 구조화된 데�
   - 스캔된 PDF (OCR)
   - 비밀번호 보호된 PDF
   - 복사 방지 기능이 설정된 PDF
-- 비동기 작업 처리 및 큐 관리
-- Redis를 통한 작업 상태 관리
+- 동기/비동기 작업 처리 지원
+- Redis를 통한 작업 상태 관리 (비동기 처리)
 - AES-256 암호화를 통한 데이터 보안
 - LLM을 활용한 텍스트 구조화
+- 다중 인보이스 자동 분할 및 처리
+- 지능형 페이지 범위 분석
 
 ## 설치
 
@@ -26,104 +28,120 @@ PDF 파일에서 텍스트를 추출하고 LLM을 사용하여 구조화된 데�
 
 3. 필요한 시스템 의존성:
 
-   - Redis 서버
+   - Redis 서버 (비동기 처리용)
    - Tesseract OCR (스캔된 PDF 처리용)
    - Poppler (PDF 이미지 변환용)
 
-## 예제 및 샘플
+## 기본 사용법
 
-프로젝트는 다음과 같은 구조로 예제와 샘플 PDF 파일들을 관리합니다:
+### 동기 처리
 
-```text
-examples/
-├── .env.example         # 환경 변수 템플릿
-├── process_pdf.py       # 예제 스크립트
-└── samples/            # 샘플 PDF 파일들
-    ├── text/           # 일반 텍스트 PDF
-    ├── scanned/       # 스캔된 PDF
-    ├── protected/     # 비밀번호 보호된 PDF
-    └── copy_protected/ # 복사 방지된 PDF
+```python
+from pdf_processor import PDFProcessor, PDFProcessType
+
+# 처리기 초기화
+processor = PDFProcessor(
+    openai_api_key="your-openai-api-key"
+)
+
+# PDF 처리 (단일 인보이스)
+results = await processor.process_pdf(
+    pdf_path="sample.pdf",
+    process_type=PDFProcessType.INVOICE.value,
+    num_pages=1  # 예상되는 인보이스 수
+)
 ```
 
-자세한 사용 방법은 [examples/README.md](examples/README.md)를 참조하세요.
-
-## 빠른 시작
-
-1. 환경 설정:
-
-    ```bash
-    cd examples
-    cp .env.example .env
-    # .env 파일을 편집하여 필요한 값들을 설정
-    ```
-
-2. Redis 서버 실행:
-
-    ```bash
-    # 로컬 Redis 서버
-    redis-server
-
-    # 또는 Docker 사용
-    docker run --name pdf-redis -p 6379:6379 -d redis
-    ```
-
-3. 예제 실행:
-
-    ```bash
-    # examples 디렉토리에서
-    poetry run python process_pdf.py
-    ```
-
-## 코드에서 사용하기
+### 비동기 처리
 
 ```python
 import asyncio
-from pdf_processor.core.queue_redis import RedisQueue
-from pdf_processor.core.worker import PDFWorker
+from pdf_processor import PDFProcessor, PDFProcessType
+from pdf_processor.processors.llm_processor import LLMProcessor
 
 async def main():
-    # Redis 큐 초기화
-    queue = RedisQueue(
+    # 처리기 초기화
+    processor = PDFProcessor(
         redis_url="redis://localhost:6379/0",
-        encryption_key="your-encryption-key"
+        openai_api_key="your-openai-api-key",
+        redis_encryption_key="your-redis-encryption-key"
     )
 
-    # 작업자 초기화
-    worker = PDFWorker(
-        queue=queue,
-        openai_api_key="your-openai-api-key"
+    # LLM 프로세서 초기화
+    LLMProcessor.initialize(
+        openai_api_key="your-openai-api-key",
+        model_name="gpt-4",
+        max_concurrent=2
     )
 
-    # 작업 등록
-    task_id = await queue.enqueue({
-        "file_path": "sample.pdf",
-        "pdf_type": "text",  # text, scanned, password_protected, copy_protected
-        "password": "optional-password",
-        "result_ttl": 3600
-    })
+    try:
+        # 작업자 시작
+        worker_task = asyncio.create_task(processor.start_worker())
 
-    # 작업자 시작
-    await worker.start()
+        # 작업 제출
+        task_id = await processor.process_pdf(
+            pdf_path="sample.pdf",
+            process_type=PDFProcessType.INVOICE.value,
+            num_pages=1,
+            async_processing=True
+        )
 
-if __name__ == "__main__":
-    asyncio.run(main())
+        # 작업 상태 확인
+        while True:
+            status = await processor.get_task_status(task_id)
+            if status in ["completed", "failed"]:
+                break
+            await asyncio.sleep(1)
+
+        # 결과 조회
+        if status == "completed":
+            result = await processor.get_task_result(task_id)
+            print(result)
+
+    finally:
+        # 작업자 중지
+        await processor.stop_worker()
+        await worker_task
 ```
 
-## 테스트
+## 환경 변수
 
-테스트 실행:
+필요한 환경 변수:
 
 ```bash
-poetry run pytest
+# OpenAI API 키 (필수)
+OPENAI_API_KEY=your-openai-api-key
+
+# Redis 설정 (비동기 처리 시 필수)
+REDIS_URL=redis://localhost:6379/0
+REDIS_ENCRYPTION_KEY=your-redis-encryption-key
+
+# LLM 설정
+MAX_CONCURRENT=2  # 최대 동시 실행 수 (기본값: 2)
+MODEL_NAME=gpt-4  # 사용할 OpenAI 모델 (기본값: gpt-4)
+
+# 로깅 설정 (선택)
+LOG_LEVEL=INFO
+
+# OCR 설정 (선택사항)
+TESSERACT_CMD=/usr/local/bin/tesseract
+TESSERACT_LANG=kor+eng
 ```
 
-## 디버깅
+## 주요 기능 설명
 
-로그 레벨 설정:
+### 페이지 번호 처리
+- 사용자 인터페이스에서는 페이지 번호가 1부터 시작합니다.
+- 내부적으로는 0-based 인덱스로 처리되지만, 모든 로그와 출력은 1-based로 표시됩니다.
 
-```bash
-export LOG_LEVEL=DEBUG
-```
+### 다중 인보이스 처리
+- 하나의 PDF 파일에 여러 개의 인보이스가 포함된 경우 처리 가능
+- LLM이 자동으로 각 인보이스의 페이지 범위를 분석
+- 분석 실패 시 균등 분할 방식으로 폴백
+
+## 예제 및 테스트
+
+자세한 예제와 테스트 방법은 [examples/README.md](examples/README.md)를 참조하세요.
 
 ## 라이선스
 

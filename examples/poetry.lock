@@ -430,7 +430,7 @@ description = "PDF Processor for asynchronous and modular PDF handling"
 optional = false
 python-versions = "^3.13"
 files = []
-develop = false
+develop = true
 
 [package.dependencies]
 cryptography = "^42.0.2"
@@ -894,4 +894,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.13"
-content-hash = "b797cc72b7cadf8a97bdaf9778cdfa4352ca352c8ad548a88466a4b9f07ea6bc"
+content-hash = "de514e4fc580ac47ff2b11b6ba5d799637737b04d6ee30c96f2966f7ea2efb79"

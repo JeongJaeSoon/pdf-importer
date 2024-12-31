@@ -7,10 +7,10 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.13"
-pdf-processor = {path = ".."}  # 로컬 패키지 참조
-python-dotenv = "^1.0.1"
+python-dotenv = "^1.0.0"
+pdf-processor = {path = "..", develop = true}  # 로컬 패키지 참조
 rich = "^13.7.0"
 
 [build-system]
 requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api" 
+build-backend = "poetry.core.masonry.api"

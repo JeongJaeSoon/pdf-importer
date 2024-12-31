@@ -1,101 +1,93 @@
 import json
+import uuid
 from typing import Any, Dict, Optional
 
 import redis.asyncio as redis
 from cryptography.fernet import Fernet
 
-from .queue import BaseQueue, TaskStatus, generate_task_id
+from pdf_processor.core.queue import BaseQueue, TaskStatus
 
 
 class RedisQueue(BaseQueue):
-    """Redis를 사용한 작업 큐 구현"""
+    """Redis 기반 작업 큐 구현 (싱글톤)"""
 
-    def __init__(
-        self,
-        redis_url: str,
-        encryption_key: str,
-        queue_name: str = "pdf_processor_queue",
-        result_prefix: str = "pdf_result",
-        status_prefix: str = "pdf_status",
-    ):
-        self.redis = redis.from_url(redis_url)
-        self.queue_name = queue_name
-        self.result_prefix = result_prefix
-        self.status_prefix = status_prefix
-        self.fernet = Fernet(encryption_key.encode())
+    _instance: Optional["RedisQueue"] = None
+    _redis: Optional[redis.Redis] = None
+    _fernet: Optional[Fernet] = None
 
-    def _get_result_key(self, task_id: str, pdf_type: str) -> str:
-        """결과 저장을 위한 Redis 키 생성"""
-        return f"{self.result_prefix}:{pdf_type}:{task_id}"
+    def __new__(
+        cls, redis_url: Optional[str] = None, encryption_key: Optional[str] = None
+    ) -> "RedisQueue":
+        if not cls._instance:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
-    def _get_status_key(self, task_id: str, pdf_type: str) -> str:
-        """상태 저장을 위한 Redis 키 생성"""
-        return f"{self.status_prefix}:{pdf_type}:{task_id}"
+    def __init__(self, redis_url: Optional[str] = None, encryption_key: Optional[str] = None):
+        # __new__에서 이미 처리되었으므로 초기화 생략
+        pass
 
-    def _get_queue_key(self, pdf_type: str) -> str:
-        """큐 이름 생성"""
-        return f"{self.queue_name}:{pdf_type}"
+    @classmethod
+    def initialize(cls, redis_url: str, encryption_key: str) -> "RedisQueue":
+        """RedisQueue 초기화 (비동기 처리 시작 시 한 번만 호출)"""
+        if not cls._instance:
+            cls._instance = cls(redis_url, encryption_key)
+            cls._redis = redis.from_url(redis_url)
+            cls._fernet = Fernet(encryption_key.encode())
+        return cls._instance
 
-    async def enqueue(self, task_data: Dict[str, Any]) -> str:
-        task_id = generate_task_id()
-        pdf_type = task_data.get("pdf_type", "text")
+    @classmethod
+    def get_instance(cls) -> "RedisQueue":
+        """RedisQueue 인스턴스 반환"""
+        if not cls._instance or not cls._redis or not cls._fernet:
+            raise RuntimeError(
+                "RedisQueue가 초기화되지 않았습니다. initialize()를 먼저 호출하세요."
+            )
+        return cls._instance
+
+    def _encrypt_data(self, data: Any) -> bytes:
+        """데이터 암호화"""
+        json_data = json.dumps(data)
+        return self._fernet.encrypt(json_data.encode())
+
+    def _decrypt_data(self, encrypted_data: bytes) -> Any:
+        """데이터 복호화"""
+        json_data = self._fernet.decrypt(encrypted_data).decode()
+        return json.loads(json_data)
+
+    async def enqueue(self, task_data: Dict[str, Any]) -> None:
+        """작업 추가"""
+        task_id = task_data.get("task_id") or f"task_{uuid.uuid4()}"
         task_data["task_id"] = task_id
-
-        # 작업 데이터 암호화
-        encrypted_data = self.fernet.encrypt(json.dumps(task_data).encode())
-
-        # PDF 유형별 큐에 작업 추가
-        queue_key = self._get_queue_key(pdf_type)
-        await self.redis.lpush(queue_key, encrypted_data)
-
-        # 초기 상태 설정
-        await self.update_task_status(task_id, TaskStatus.PENDING, pdf_type)
-
-        return task_id
+        encrypted_data = self._encrypt_data(task_data)
+        await self._redis.lpush("task_queue", encrypted_data)
+        await self.update_task_status(task_id, TaskStatus.PENDING)
 
     async def dequeue(self) -> Optional[Dict[str, Any]]:
-        # 모든 PDF 유형의 큐를 확인
-        pdf_types = ["text", "scanned", "password_protected", "copy_protected"]
-
-        for pdf_type in pdf_types:
-            queue_key = self._get_queue_key(pdf_type)
-            encrypted_data = await self.redis.rpop(queue_key)
-
-            if encrypted_data:
-                # 데이터 복호화
-                decrypted_data = self.fernet.decrypt(encrypted_data)
-                return json.loads(decrypted_data)
-
+        """작업 가져오기"""
+        encrypted_data = await self._redis.rpop("task_queue")
+        if encrypted_data:
+            return self._decrypt_data(encrypted_data)
         return None
 
-    async def get_task_status(self, task_id: str, pdf_type: str = "text") -> TaskStatus:
-        status = await self.redis.get(self._get_status_key(task_id, pdf_type))
-        return TaskStatus(status.decode()) if status else TaskStatus.FAILED
+    async def store_result(self, task_id: str, result: Any) -> None:
+        """작업 결과 저장"""
+        encrypted_result = self._encrypt_data(result)
+        await self._redis.set(f"result:{task_id}", encrypted_result)
 
-    async def update_task_status(
-        self, task_id: str, status: TaskStatus, pdf_type: str = "text"
-    ) -> None:
-        await self.redis.set(self._get_status_key(task_id, pdf_type), status.value)
+    async def get_result(self, task_id: str) -> Optional[Any]:
+        """작업 결과 조회"""
+        encrypted_result = await self._redis.get(f"result:{task_id}")
+        if encrypted_result:
+            return self._decrypt_data(encrypted_result)
+        return None
 
-    async def store_result(
-        self, task_id: str, result: Dict[str, Any], ttl: int = 3600, pdf_type: str = "text"
-    ) -> None:
-        # 결과 데이터 암호화
-        encrypted_result = self.fernet.encrypt(json.dumps(result).encode())
+    async def update_task_status(self, task_id: str, status: TaskStatus) -> None:
+        """작업 상태 업데이트"""
+        await self._redis.set(f"status:{task_id}", status.value)
 
-        # 결과 저장 및 TTL 설정
-        key = self._get_result_key(task_id, pdf_type)
-        await self.redis.set(key, encrypted_result)
-        await self.redis.expire(key, ttl)
-
-        # 상태 업데이트
-        await self.update_task_status(task_id, TaskStatus.COMPLETED, pdf_type)
-
-    async def get_result(self, task_id: str, pdf_type: str = "text") -> Optional[Dict[str, Any]]:
-        encrypted_result = await self.redis.get(self._get_result_key(task_id, pdf_type))
-        if not encrypted_result:
-            return None
-
-        # 결과 복호화
-        decrypted_result = self.fernet.decrypt(encrypted_result)
-        return json.loads(decrypted_result)
+    async def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
+        """작업 상태 조회"""
+        status = await self._redis.get(f"status:{task_id}")
+        if status:
+            return TaskStatus(status.decode())
+        return None
