@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import fitz
 
@@ -13,12 +13,15 @@ logger = logging.getLogger(__name__)
 class PDFAnalyzer(BaseProcessor):
     """PDF 파일 분석 및 분할을 위한 클래스"""
 
-    async def execute(self, pdf_path: str, num_pages: int) -> List[Tuple[int, int, Optional[str]]]:
+    async def execute(
+        self, pdf_path: str, num_pages: int, metadata: Optional[Dict] = None
+    ) -> List[Tuple[int, int, Optional[str]]]:
         """PDF 파일을 분석하여 페이지 범위 결정
 
         Args:
             pdf_path: PDF 파일 경로
             num_pages: 예상되는 인보이스 문서 수
+            metadata: PDF 파일 관련 메타데이터 (선택사항)
 
         Returns:
             페이지 범위와 분석 근거 리스트 [(시작, 끝, 근거), ...] (0-based index)
@@ -42,8 +45,10 @@ class PDFAnalyzer(BaseProcessor):
                 text += f"\n=== 페이지 {page_num + 1} ===\n"  # 1-based 페이지 번호
                 text += page.get_text()
 
-            # 프롬프트 생성
-            system_message = get_pdf_analysis_prompt(total_pages, num_pages)
+            # 프롬프트 생성 (메타데이터 포함)
+            system_message = get_pdf_analysis_prompt(
+                total_pages=total_pages, num_pages=num_pages, metadata=metadata
+            )
 
             # LLM을 사용하여 데이터 추출
             result = await self.llm.extract_data(

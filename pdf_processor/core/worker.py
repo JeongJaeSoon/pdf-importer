@@ -67,10 +67,13 @@ class Worker:
             pdf_path = task_data["pdf_path"]
             process_type = task_data["process_type"]
             num_pages = task_data["num_pages"]
+            metadata = task_data.get("metadata")  # 메타데이터 가져오기
 
             # PDF 분석기 초기화
             analyzer = PDFAnalyzer()
-            page_ranges_with_reasons = await analyzer.execute(pdf_path, num_pages)
+            page_ranges_with_reasons = await analyzer.execute(
+                pdf_path=pdf_path, num_pages=num_pages, metadata=metadata  # 메타데이터 전달
+            )
 
             # 처리 타입에 맞는 프로세서 초기화
             processor_class = self._get_processor_class(process_type)
@@ -80,9 +83,12 @@ class Worker:
             results = []
             for start_page, end_page, reason in page_ranges_with_reasons:
                 try:
-                    # 기존 execute 메서드 호출 시 분석 근거도 함께 전달
+                    # 기존 execute 메서드 호출 시 분석 근거와 메타데이터 함께 전달
                     result = await processor.execute(
-                        pdf_path=pdf_path, page_range=(start_page, end_page), analysis_reason=reason
+                        pdf_path=pdf_path,
+                        page_range=(start_page, end_page),
+                        analysis_reason=reason,
+                        metadata=metadata,  # 메타데이터 전달
                     )
                     results.append(result)
                 except Exception as e:

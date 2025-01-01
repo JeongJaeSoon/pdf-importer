@@ -111,23 +111,55 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
     Returns:
         처리 결과 리스트
     """
-    # 파일별 인보이스 수 매핑
-    invoice_counts = {
-        "sample_invoice_1.pdf": 1,
-        "sample_invoice_2.pdf": 2,
-        "sample_invoice_3.pdf": 3,
-        "sample_invoice_4.pdf": 4,
+    # PDF 파일별 정보 매핑 (num_pages 는 필수, metadata 는 선택)
+    pdf_info = {
+        "sample_invoice_1.pdf": {
+            "num_pages": 1,
+            "metadata": {
+                "customer_names": ["鶯交通"],
+            },
+        },
+        "sample_invoice_2.pdf": {
+            "num_pages": 2,
+            "metadata": {
+                "customer_names": [
+                    "ふつう株式会社",
+                    "とてもとてもとてもとてもとてもとてもとてもとてもとても とてもとてもとてもとてもとてもとてもとても株式会社 長い長い長い長い長い長い長い長い長い長い長い長 い長い長い長い長い長い長い長い長い長い長い長い 長い長い長い長い長い支社",
+                ],
+            },
+        },
+        "sample_invoice_3.pdf": {
+            "num_pages": 3,
+            "metadata": {
+                "customer_names": ["AAA", "[demo]有限会社freee建設", "[demo]株式会社freee企画"],
+            },
+        },
+        "sample_invoice_4.pdf": {
+            "num_pages": 4,
+            "metadata": {
+                "customer_names": [
+                    "AAA",
+                    "[demo]有限会社freee建設",
+                    "[demo]株式会社freee企画",
+                    "[demo]株式会社freee開発",
+                ],
+            },
+        },
     }
 
     # 작업 제출
     tasks = []
     for pdf_path in pdf_files:
-        # 파일명에 따른 인보이스 수 결정
-        num_invoices = invoice_counts.get(pdf_path.name, 1)
+        # 파일명에 따른 정보 가져오기
+        file_info = pdf_info.get(pdf_path.name, {"num_pages": 1})
+        num_invoices = file_info["num_pages"]
+        metadata = file_info.get("metadata", {})
+
         task_id = await processor.process_pdf(
             pdf_path=str(pdf_path),
             process_type=PDFProcessType.INVOICE.value,
-            num_pages=num_invoices,  # 파일별 인보이스 수 지정
+            num_pages=num_invoices,
+            metadata=metadata,  # 메타데이터 전달
             async_processing=True,
         )
         tasks.append((task_id, pdf_path))

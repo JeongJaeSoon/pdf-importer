@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 from pdf_processor.core.queue_redis import RedisQueue
 from pdf_processor.core.worker import Worker
@@ -53,6 +53,7 @@ class PDFProcessor:
         pdf_path: str,
         process_type: PDFProcessType,
         num_pages: int,
+        metadata: Optional[Dict] = None,
         async_processing: bool = False,
     ) -> Any:
         """PDF 처리 시작
@@ -61,6 +62,7 @@ class PDFProcessor:
             pdf_path: PDF 파일 경로
             process_type: 처리 유형 (PDFProcessType)
             num_pages: 예상되는 인보이스 수
+            metadata: PDF 파일 관련 메타데이터 (선택사항)
             async_processing: 비동기 처리 여부 (기본값: False)
 
         Returns:
@@ -81,6 +83,7 @@ class PDFProcessor:
                 "pdf_path": pdf_path,
                 "process_type": process_type,
                 "num_pages": num_pages,
+                "metadata": metadata,
             }
 
             # 작업 큐에 추가
@@ -94,6 +97,7 @@ class PDFProcessor:
             "pdf_path": pdf_path,
             "process_type": process_type,
             "num_pages": num_pages,
+            "metadata": metadata,
         }
         await worker.process_task(task_data)
         return task_data["task_id"]

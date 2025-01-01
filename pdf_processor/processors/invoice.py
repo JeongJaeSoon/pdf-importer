@@ -12,7 +12,11 @@ class Invoice(BaseProcessor):
     """인보이스 데이터 추출을 위한 프로세서"""
 
     async def execute(
-        self, pdf_path: str, page_range: Tuple[int, int], analysis_reason: Optional[str] = None
+        self,
+        pdf_path: str,
+        page_range: Tuple[int, int],
+        analysis_reason: Optional[str] = None,
+        metadata: Optional[Dict] = None,
     ) -> Optional[Dict]:
         """인보이스 데이터 추출
 
@@ -20,12 +24,16 @@ class Invoice(BaseProcessor):
             pdf_path: PDF 파일 경로
             page_range: 처리할 페이지 범위 (시작, 끝) - 0-based index
             analysis_reason: PDF 분석기가 제공한 페이지 범위 결정 근거 (선택사항)
+            metadata: PDF 파일 관련 메타데이터 (선택사항)
+
         Returns:
             추출된 인보이스 데이터 또는 None (실패 시)
         """
         try:
-            # 프롬프트 생성 (분석 근거 포함)
-            system_message = get_invoice_processor_prompt(analysis_reason=analysis_reason)
+            # 프롬프트 생성 (분석 근거와 메타데이터 포함)
+            system_message = get_invoice_processor_prompt(
+                analysis_reason=analysis_reason, metadata=metadata
+            )
 
             # LLM을 사용하여 데이터 추출
             result = await self.llm.extract_data(
