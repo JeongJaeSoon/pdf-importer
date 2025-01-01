@@ -4,6 +4,7 @@ from typing import List, Optional, Tuple
 import fitz
 
 from pdf_processor.processors.base import BaseProcessor
+from pdf_processor.schemas.extraction_schemas import PDF_ANALYZER_SCHEMA
 from pdf_processor.utils.prompts import get_pdf_analysis_prompt
 
 logger = logging.getLogger(__name__)
@@ -41,38 +42,6 @@ class PDFAnalyzer(BaseProcessor):
                 text += f"\n=== 페이지 {page_num + 1} ===\n"  # 1-based 페이지 번호
                 text += page.get_text()
 
-            # LLM을 사용하여 페이지 범위 분석
-            schema = {
-                "type": "object",
-                "properties": {
-                    "page_ranges": {
-                        "type": "array",
-                        "description": "인보이스 문서별 페이지 범위 리스트",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "start_page": {
-                                    "type": "integer",
-                                    "description": "시작 페이지 번호 (1부터 시작)",
-                                    "minimum": 1,
-                                },
-                                "end_page": {
-                                    "type": "integer",
-                                    "description": "끝 페이지 번호 (1부터 시작)",
-                                    "minimum": 1,
-                                },
-                                "reason": {
-                                    "type": "string",
-                                    "description": "이 페이지 범위를 하나의 인보이스로 판단한 근거",
-                                },
-                            },
-                            "required": ["start_page", "end_page", "reason"],
-                        },
-                    }
-                },
-                "required": ["page_ranges"],
-            }
-
             # 프롬프트 생성
             system_message = get_pdf_analysis_prompt(total_pages, num_pages)
 
@@ -80,7 +49,7 @@ class PDFAnalyzer(BaseProcessor):
             result = await self.llm.extract_data(
                 pdf_path=pdf_path,
                 page_range=(0, total_pages - 1),
-                schema=schema,
+                schema=PDF_ANALYZER_SCHEMA,
                 system_message=system_message,
             )
 

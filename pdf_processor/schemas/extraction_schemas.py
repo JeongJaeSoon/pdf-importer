@@ -1,35 +1,36 @@
-from typing import Any, Dict, List, TypedDict
+from typing import Any, Dict
 
-
-class InvoiceItemDict(TypedDict):
-    """인보이스 항목 정보"""
-
-    item_name: str  # 품목명
-    quantity: int  # 수량
-    unit_price: float  # 단가
-    amount: float  # 금액
-
-
-class InvoiceTaxDict(TypedDict):
-    """인보이스 세금 정보"""
-
-    tax_type: str  # 세금 유형 (예: VAT, 소득세 등)
-    tax_rate: float  # 세율
-    tax_amount: float  # 세액
-
-
-class InvoiceDict(TypedDict):
-    """인보이스 전체 정보"""
-
-    invoice_number: str  # 인보이스 번호
-    issue_date: str  # 발행일
-    due_date: str  # 지급기한
-    customer_name: str  # 고객명
-    items: List[InvoiceItemDict]  # 품목 리스트
-    subtotal: float  # 공급가액
-    taxes: List[InvoiceTaxDict]  # 세금 정보
-    total_amount: float  # 총액
-
+# PDF 분석 데이터 추출 스키마
+PDF_ANALYZER_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "page_ranges": {
+            "type": "array",
+            "description": "인보이스 문서별 페이지 범위 리스트",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "start_page": {
+                        "type": "integer",
+                        "description": "시작 페이지 번호 (1부터 시작)",
+                        "minimum": 1,
+                    },
+                    "end_page": {
+                        "type": "integer",
+                        "description": "끝 페이지 번호 (1부터 시작)",
+                        "minimum": 1,
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "이 페이지 범위를 하나의 인보이스로 판단한 근거",
+                    },
+                },
+                "required": ["start_page", "end_page", "reason"],
+            },
+        }
+    },
+    "required": ["page_ranges"],
+}
 
 # 인보이스 추출 스키마
 INVOICE_SCHEMA: Dict[str, Any] = {
