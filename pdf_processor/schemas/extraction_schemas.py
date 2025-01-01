@@ -6,23 +6,23 @@ PDF_ANALYZER_SCHEMA: Dict[str, Any] = {
     "properties": {
         "page_ranges": {
             "type": "array",
-            "description": "인보이스 문서별 페이지 범위 리스트",
+            "description": "List of page ranges for each invoice document",
             "items": {
                 "type": "object",
                 "properties": {
                     "start_page": {
                         "type": "integer",
-                        "description": "시작 페이지 번호 (1부터 시작)",
+                        "description": "Start page number (1-based index)",
                         "minimum": 1,
                     },
                     "end_page": {
                         "type": "integer",
-                        "description": "끝 페이지 번호 (1부터 시작)",
+                        "description": "End page number (1-based index)",
                         "minimum": 1,
                     },
                     "reason": {
                         "type": "string",
-                        "description": "이 페이지 범위를 하나의 인보이스로 판단한 근거",
+                        "description": "Reason for determining this page range as a single invoice",
                     },
                 },
                 "required": ["start_page", "end_page", "reason"],
@@ -39,56 +39,56 @@ INVOICE_SCHEMA: Dict[str, Any] = {
         "invoice_number": {
             "type": "string",
             "description": (
-                "인보이스 번호 - 필수 필드\n"
-                "- 위치: 첫 페이지 우측 상단\n"
-                "- 라벨: '인보이스 번호:', '청구서 번호:', 'Invoice No:' 등\n"
-                "- 검증: 영문/숫자/특수문자 조합"
+                "Invoice number - Required field\n"
+                "- Location: Top right of the first page\n"
+                "- Label: 'Invoice No:', 'Invoice Number:', etc.\n"
+                "- Validation: Combination of letters, numbers, and special characters"
             ),
         },
         "issue_date": {
             "type": "string",
             "description": (
-                "발행일 - 필수 필드\n"
-                "- 위치: 첫 페이지 상단\n"
-                "- 라벨: '발행일:', '작성일:', 'Issue Date:' 등\n"
-                "- 형식: YYYY-MM-DD"
+                "Issue date - Required field\n"
+                "- Location: Top of the first page\n"
+                "- Label: 'Issue Date:', 'Date of Issue:', etc.\n"
+                "- Format: YYYY-MM-DD"
             ),
         },
         "due_date": {
             "type": "string",
             "description": (
-                "지급기한 - 필수 필드\n"
-                "- 위치: 발행일 근처\n"
-                "- 라벨: '지급기한:', '만기일:', 'Due Date:' 등\n"
-                "- 형식: YYYY-MM-DD"
+                "Due date - Required field\n"
+                "- Location: Near the issue date\n"
+                "- Label: 'Due Date:', 'Payment Due:', etc.\n"
+                "- Format: YYYY-MM-DD"
             ),
         },
         "customer_name": {
             "type": "string",
             "description": (
-                "고객명 - 필수 필드\n"
-                "- 위치: 첫 페이지 좌측 상단\n"
-                "- 형식: 회사명/지사명 (경칭 제외)"
+                "Customer name - Required field\n"
+                "- Location: Top left of the first page\n"
+                "- Format: Company/Branch name (without honorifics)"
             ),
         },
         "items": {
             "type": "array",
             "description": (
-                "품목 리스트 - 필수 필드\n"
-                "- 구조: 표 형태의 품목 정보\n"
-                "- 포함 조건:\n"
-                "  * 품목명(item_name)이 있고\n"
-                "  * 수량(quantity)이 있고\n"
-                "  * 단가(unit_price)가 있고\n"
-                "  * 금액(amount)이 있는 항목만 포함\n"
-                "- 제외 대상:\n"
-                "  * 카테고리/구분용 텍스트\n"
-                "  * 메모/설명만 있는 행 (수량/단가/금액 없음)\n"
-                "  * 소계/합계 행\n"
-                "  * 수량/단가/금액 중 하나라도 없는 항목\n"
-                "- 메모/설명 처리:\n"
-                "  * 품목에 대한 부가 설명은 해당 품목의 item_name에 포함\n"
-                "  * 독립적인 메모/설명 행은 품목에서 제외"
+                "List of items - Required field\n"
+                "- Structure: Tabular item information\n"
+                "- Inclusion criteria:\n"
+                "  * Must have item_name\n"
+                "  * Must have quantity\n"
+                "  * Must have unit_price\n"
+                "  * Must have amount\n"
+                "- Exclusion criteria:\n"
+                "  * Category/section text\n"
+                "  * Rows with only notes/descriptions (no quantity/unit_price/amount)\n"
+                "  * Subtotal/total rows\n"
+                "  * Rows missing any of quantity/unit_price/amount\n"
+                "- Note/description handling:\n"
+                "  * Additional descriptions for items are included in item_name\n"
+                "  * Independent note/description rows are excluded"
             ),
             "items": {
                 "type": "object",
@@ -96,30 +96,34 @@ INVOICE_SCHEMA: Dict[str, Any] = {
                     "item_name": {
                         "type": "string",
                         "description": (
-                            "품목명\n"
-                            "- 상품/서비스 명칭\n"
-                            "- 관련 메모나 설명 포함 가능\n"
-                            "- 카테고리/구분용 텍스트 제외"
+                            "Item name (can be an empty string)\n"
+                            "- Name of the product/service\n"
+                            "- May include related notes or descriptions\n"
+                            "- Excludes category/section text"
                         ),
                     },
                     "quantity": {
                         "type": "integer",
                         "description": (
-                            "수량\n" "- 정수값\n" "- 양수/음수 모두 가능 (반품 등의 경우 음수)"
+                            "Quantity\n"
+                            "- Integer value\n"
+                            "- Can be positive or negative (negative for returns, etc.)"
                         ),
                     },
                     "unit_price": {
                         "type": "number",
                         "description": (
-                            "단가\n"
-                            "- 쉼표/통화기호 제외한 숫자\n"
-                            "- 양수/음수 모두 가능 (할인 등의 경우 음수)"
+                            "Unit price\n"
+                            "- Number without commas/currency symbols\n"
+                            "- Can be positive or negative (negative for discounts, etc.)"
                         ),
                     },
                     "amount": {
                         "type": "number",
                         "description": (
-                            "금액\n" "- quantity * unit_price와 일치\n" "- 양수/음수 모두 가능"
+                            "Amount\n"
+                            "- Should match quantity * unit_price\n"
+                            "- Can be positive or negative"
                         ),
                     },
                 },
@@ -129,44 +133,48 @@ INVOICE_SCHEMA: Dict[str, Any] = {
         "subtotal": {
             "type": "number",
             "description": (
-                "공급가액 - 필수 필드\n"
-                "- 위치 및 검증:\n"
-                "  * 첫 페이지 상단의 금액과 마지막 페이지 합계 금액을 비교\n"
-                "  * 두 금액이 유사하거나 일치하는 경우 해당 값 사용\n"
-                "  * 차이가 있는 경우 첫 페이지 금액 우선\n"
-                "- 라벨: '공급가액:', '소계:', '합계:', 'Subtotal:' 등\n"
-                "- 음수 가능 (전체가 반품/할인인 경우)"
+                "Subtotal - Required field\n"
+                "- Location and validation:\n"
+                "  * Compare the amount at the top of the first page with the total amount on the last page\n"
+                "  * Use the value if they are similar or match\n"
+                "  * If there is a difference, prioritize the first page amount\n"
+                "- Label: 'Subtotal:', 'Total before tax:', etc.\n"
+                "- Can be negative (if the entire invoice is a return/discount)"
             ),
         },
         "taxes": {
             "type": "array",
             "description": (
-                "세금 정보 - 필수 필드\n"
-                "- 위치 및 검증:\n"
-                "  * 첫 페이지 상단의 세액과 마지막 페이지 합계 세액을 비교\n"
-                "  * 두 금액이 유사하거나 일치하는 경우 해당 값 사용\n"
-                "  * 차이가 있는 경우 첫 페이지 금액 우선\n"
-                "- 구조: 세금 유형별 정보\n"
-                "- 음수 가능 (공급가액이 음수인 경우)"
+                "Tax information - Required field\n"
+                "- Location and validation:\n"
+                "  * Compare the tax amount at the top of the first page with the total tax amount on the last page\n"
+                "  * Use the value if they are similar or match\n"
+                "  * If there is a difference, prioritize the first page amount\n"
+                "- Structure: Information by tax type\n"
+                "- Can be negative (if the subtotal is negative)"
             ),
             "items": {
                 "type": "object",
                 "properties": {
                     "tax_type": {
                         "type": "string",
-                        "description": "세금 유형 (예: 'VAT', '부가가치세', '소득세' 등)",
+                        "description": "Type of tax (e.g., 'VAT', 'Sales Tax', etc.)",
                     },
                     "tax_rate": {
                         "type": "number",
-                        "description": ("세율\n" "- % 기호 제외한 숫자\n" "- 0 이상 100 이하"),
+                        "description": (
+                            "Tax rate\n"
+                            "- Number without % symbol\n"
+                            "- Between 0 and 100 inclusive"
+                        ),
                     },
                     "tax_amount": {
                         "type": "number",
                         "description": (
-                            "세액\n"
-                            "- 쉼표/통화기호 제외한 숫자\n"
-                            "- 청 페이지와 마지막 페이지의 세액 비교하여 검증\n"
-                            "- 양수/음수 모두 가능"
+                            "Tax amount\n"
+                            "- Number without commas/currency symbols\n"
+                            "- Compare with the tax amount on the first and last pages for validation\n"
+                            "- Can be positive or negative"
                         ),
                     },
                 },
@@ -176,13 +184,13 @@ INVOICE_SCHEMA: Dict[str, Any] = {
         "total_amount": {
             "type": "number",
             "description": (
-                "총액 - 필수 필드\n"
-                "- 위치 및 검증:\n"
-                "  * 첫 페이지 상단의 금액과 마지막 페이지 합계 금액을 비교\n"
-                "  * 두 금액이 유사하거나 일치하는 경우 해당 값 사용\n"
-                "  * 차이가 있는 경우 첫 페이지 금액 우선\n"
-                "- 라벨: '총액:', '합계:', '청구금액:', 'Total:' 등\n"
-                "- 음수 가능 (전체가 반품/할인인 경우)"
+                "Total amount - Required field\n"
+                "- Location and validation:\n"
+                "  * Compare the amount at the top of the first page with the total amount on the last page\n"
+                "  * Use the value if they are similar or match\n"
+                "  * If there is a difference, prioritize the first page amount\n"
+                "- Label: 'Total:', 'Grand Total:', etc.\n"
+                "- Can be negative (if the entire invoice is a return/discount)"
             ),
         },
     },
