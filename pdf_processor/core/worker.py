@@ -24,12 +24,11 @@ class PDFWorker:
         # PDFProcessType.RECEIPT: ReceiptProcessor,
     }
 
-    def __init__(self, queue: BaseQueue, openai_api_key: str):
+    def __init__(self, queue: BaseQueue):
         self.queue = queue
-        self.openai_api_key = openai_api_key
         self.running = False
         # LLMProcessor 초기화
-        self.llm_processor = LLMProcessor.initialize(openai_api_key)
+        self.llm_processor = LLMProcessor.get_instance()
 
     def _get_processor_class(self, process_type: str) -> Type[BaseProcessor]:
         """처리 타입에 맞는 프로세서 클래스 반환"""
@@ -75,7 +74,7 @@ class PDFWorker:
 
             # 처리 타입에 맞는 프로세서 초기화
             processor_class = self._get_processor_class(process_type)
-            processor = processor_class(self.openai_api_key)
+            processor = processor_class()
 
             # 각 페이지 범위별로 처리
             results = []

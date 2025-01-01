@@ -12,7 +12,6 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from pdf_processor import PDFProcessor, PDFProcessType
-from pdf_processor.processors.llm_processor import LLMProcessor
 
 # .env 파일 로드
 load_dotenv()
@@ -151,16 +150,11 @@ async def main():
     ]
     console.print(Panel("\n".join(info_text), title="작업 정보", border_style="blue"))
 
-    # PDF 처리기 초기화
+    # PDF 처리기 초기화 (LLM 프로세서도 함께 초기화됨)
     processor = PDFProcessor(
         redis_url=redis_url,
         openai_api_key=openai_api_key,
         redis_encryption_key=redis_encryption_key,
-    )
-
-    # LLM 프로세서 초기화 (동시 실행 수 제한 설정)
-    LLMProcessor.initialize(
-        openai_api_key,
         model_name=model_name,
         max_concurrent=max_concurrent,
     )
