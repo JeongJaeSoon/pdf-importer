@@ -66,6 +66,7 @@ INVOICE_SCHEMA: Dict[str, Any] = {
             "description": (
                 "Customer name - Required field\n"
                 "- Location: Top left of the first page\n"
+                "- Remove honorifics such as '御中' or '様' from customer names\n"
                 "- Format: Company/Branch name (without honorifics)"
             ),
         },

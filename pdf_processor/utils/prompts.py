@@ -96,61 +96,30 @@ You are an expert in extracting invoice data. Please follow these detailed steps
    - No assumptions or guesses
    - Prefer displayed values over calculated ones
    - Extract all amounts as numbers without commas/currency symbols
-   - IMPORTANT: Keep all text in its original language - DO NOT translate
+   - Keep all text in its original language - DO NOT translate
+   - Remove honorifics such as '御中' or '様' from customer names provided in metadata
+   - Identify the original language of the data and ensure it is not changed to another language.
 
 2. Item List Processing and Validation:
-   - Mandatory Item Data Requirements:
-     * Each valid item must have at least 2 of the following:
-       - Item name (can be empty string, but must be in original language)
-       - Unit price
-       - Quantity
-       - Total amount
-     * If only one field is present, treat as invalid data
-   - Data Quality Checks:
-     * Verify data consistency within the same row/column
-     * Rows with only item names or only numbers are likely incorrect
-     * Check if numbers in the same column have similar formats
-   - Exclusion criteria:
-     * Rows with only notes/descriptions
-     * Category/section text rows
-     * Subtotal/total/intermediate total rows
-     * Additional explanations or annotation rows
-   - Item Name Processing:
-     * Include additional explanations for items in item_name
-     * Keep all text in its original language
-     * Exclude independent note/description rows
-   - Item Data Validation:
-     * Exclude if item_name is present but quantity/unit_price is missing
-     * Exclude if quantity and unit_price are present but it's clearly a subtotal/total row
-     * Exclude if in doubt (adhere to data integrity principles)
+   - Each valid item must have at least 2 of the following:
+     * Item name (can be empty string, but must be in original language)
+     * Unit price
+     * Quantity
+     * Total amount
+   - Verify data consistency within the same row/column
+   - Exclude rows with only notes/descriptions, category/section text, or subtotal/total rows
+   - Include additional explanations for items in item_name
+   - Exclude independent note/description rows
+   - Exclude if item_name is present but quantity/unit_price is missing
+   - Exclude if quantity and unit_price are present but it's clearly a subtotal/total row
 
 3. Amount Extraction and Verification:
-   - Initial Amount Extraction:
-     * Extract amounts from clearly labeled sections
-     * Record the location and context of each amount
-     * Keep labels in their original language
-   - Multi-step Verification Process:
-     * Step 1: Compare extracted amounts with calculated totals
-     * Step 2: If discrepancy found:
-       - Re-verify each extracted amount
-       - Check for possible misclassification (e.g., tax as subtotal)
-       - Verify item list completeness
-     * Step 3: If discrepancy persists:
-       - Compare amounts across different pages
-       - Check for additional charges or discounts
-       - Look for explanatory notes
-     * Step 4: Final Verification:
-       - Verify: Total = Subtotal + Taxes
-       - Verify: Subtotal = Sum of item amounts
-       - Document any remaining discrepancies
-   - Amount Location Priority:
-     * First page header area: Primary source
-     * Last page footer area: Secondary source
-     * Item list calculations: Verification only
-   - Handling Discrepancies:
-     * If amounts don't match: Prioritize explicitly stated amounts
-     * Document the source of each amount
-     * Flag significant discrepancies for review
+   - Extract amounts from clearly labeled sections
+   - Record the location and context of each amount
+   - Compare extracted amounts with calculated totals
+   - Re-verify each extracted amount if discrepancies are found
+   - Prioritize explicitly stated amounts
+   - Document the source of each amount
 
 4. Handling Empty Values:
    - Strings: Empty string ""
@@ -163,54 +132,42 @@ You are an expert in extracting invoice data. Please follow these detailed steps
    - Check for the presence of required fields
    - Verify the accuracy of amount calculations
    - Validate date formats (YYYY-MM-DD)
-   - Handle fields with empty values if validation fails
-   - Keep all text in its original language
 
 6. Error Handling:
    - Extract only verifiable parts in case of format inconsistency
-   - Extract only confirmed parts in case of incomplete data
    - Handle ambiguous data as empty values
-   - Do not attempt to translate or modify text content
 
 7. Extraction Quality Assurance:
-   - Primary Verification:
-     * Verify all required fields are present
-     * Check numerical consistency
-     * Validate date formats
-     * Ensure text remains in original language
-   - Secondary Verification:
-     * Cross-reference amounts across pages
-     * Verify item list completeness
-     * Check for missing or duplicate items
-   - Final Verification:
-     * Perform amount reconciliation
-     * Document any discrepancies
-     * Flag items requiring manual review
+   - Verify all required fields are present
+   - Check numerical consistency
+   - Cross-reference amounts across pages
+   - Verify item list completeness
 
 8. Re-verification Process:
-   - Trigger Conditions:
-     * Amount discrepancies detected
-     * Missing required fields
-     * Inconsistent item data
-   - Re-verification Steps:
-     * Re-extract all amounts independently
-     * Re-validate item list completeness
-     * Cross-check against original document
-     * Document changes and reasons
-   - Final Decision:
-     * Accept data only if verification passes
-     * Flag for manual review if issues persist
-     * Document verification results
+   - Re-extract all amounts independently if discrepancies are detected
+   - Document changes and reasons
 
 9. Language and Text Handling:
-   - Maintain original language:
-     * Do not translate any text content
-     * Keep company names, addresses, and descriptions in their original form
-     * Preserve original formatting of dates and numbers
-   - Character encoding:
-     * Preserve special characters and symbols
-     * Maintain original text encoding
-     * Handle multi-byte characters correctly
+   - Maintain original language
+   - Preserve original formatting of dates and numbers
+   - Handle multi-byte characters correctly
+
+10. Handling Long Data:
+   - If extracted data is too long to process, you may exceptionally truncate it
+   - Avoid truncation if possible
+   - Do not alter or transform the data arbitrarily
+
+11. Post-extraction Verification:
+   - Compare extracted data with the actual content in the PDF file
+   - Ensure consistency and accuracy between extracted data and original content
+   - Document any discrepancies found during comparison
+
+12. Extraction and Verification Sequence:
+   1. Extract invoice number and amounts (total, tax, face value) and cross-verify with the PDF
+   2. Check the number of items in the item list (note that items with only names and no amounts may be unrelated notes)
+   3. Extract detailed information of items (amount, quantity, etc.) and cross-verify with the PDF
+   4. Compare the total amount of items with the invoice amount and perform a final cross-verification with the PDF
+   5. If any issues arise during this extraction process, re-extract and verify the data
 """
 
     if metadata:

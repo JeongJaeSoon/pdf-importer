@@ -112,15 +112,15 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
         "sample_invoice_1.pdf": {
             "num_pages": 1,
             "metadata": {
-                "customer_names": ["Uguisu Transportation"],
+                "customer_names": ["鶯交通"],
             },
         },
         "sample_invoice_2.pdf": {
             "num_pages": 2,
             "metadata": {
                 "customer_names": [
-                    "Ordinary Corporation",
-                    "Very Very Very Very Very Very Very Very Very Very Very Very Very Very Very Very Long Corporation Branch Office",
+                    "ふつう株式会社",
+                    "とてもとてもとてもとてもとてもとてもとてもとてもとても とてもとてもとてもとてもとてもとてもとても株式会社長い長い長い長い長い長い長い長い長い長い長い長 い長い長い長い長い長い長い長い長い長い長い長い 長い長い長い長い長い支社",
                 ],
             },
         },
@@ -129,8 +129,8 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
             "metadata": {
                 "customer_names": [
                     "AAA",
-                    "[demo]Freee Construction LLC",
-                    "[demo]Freee Planning Corp",
+                    "[demo]有限会社freee建設",
+                    "[demo]株式会社freee企画",
                 ],
             },
         },
@@ -139,9 +139,9 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
             "metadata": {
                 "customer_names": [
                     "AAA",
-                    "[demo]Freee Construction LLC",
-                    "[demo]Freee Planning Corp",
-                    "[demo]Freee Development Corp",
+                    "[demo]有限会社freee建設",
+                    "[demo]株式会社freee企画",
+                    "[demo]株式会社freee開発",
                 ],
             },
         },
