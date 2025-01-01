@@ -25,7 +25,6 @@ class InvoiceDict(TypedDict):
     issue_date: str  # 발행일
     due_date: str  # 지급기한
     customer_name: str  # 고객명
-    customer_registration_number: str  # 고객 사업자등록번호
     items: List[InvoiceItemDict]  # 품목 리스트
     subtotal: float  # 공급가액
     taxes: List[InvoiceTaxDict]  # 세금 정보
@@ -40,10 +39,6 @@ INVOICE_SCHEMA: Dict = {
         "issue_date": {"type": "string", "description": "발행일 (YYYY-MM-DD 형식)"},
         "due_date": {"type": "string", "description": "지급기한 (YYYY-MM-DD 형식)"},
         "customer_name": {"type": "string", "description": "고객명"},
-        "customer_registration_number": {
-            "type": "string",
-            "description": "고객 사업자등록번호",
-        },
         "items": {
             "type": "array",
             "description": "품목 리스트",
@@ -79,7 +74,6 @@ INVOICE_SCHEMA: Dict = {
         "issue_date",
         "due_date",
         "customer_name",
-        "customer_registration_number",
         "items",
         "subtotal",
         "taxes",

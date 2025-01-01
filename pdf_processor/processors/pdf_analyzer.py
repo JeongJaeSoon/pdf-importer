@@ -104,7 +104,7 @@ class PDFAnalyzer(BaseProcessor):
                     if start_page <= end_page:
                         page_ranges.append((start_page, end_page))
                         logger.info(
-                            f"인보이스 페이지 범위: {start_page+1}-{end_page+1}, "
+                            f"인보이스 페이지 범위: {start_page+1}-{end_page+1}\n"
                             f"근거: {range_info.get('reason', '정보 없음')}"
                         )
 
