@@ -1,5 +1,3 @@
-"""PDF 처리를 위한 프롬프트 모음"""
-
 from typing import Dict, Optional
 
 
@@ -98,18 +96,24 @@ You are an expert in extracting invoice data. Please follow these detailed steps
    - Prefer displayed values over calculated ones
    - Extract all amounts as numbers without commas/currency symbols
 
-2. Item List Processing:
-   - Criteria for extracting item data:
-     * Extract data only if item_name is present (empty string "" is also valid)
-     * Process as an item only if both quantity and unit_price are present
-     * Consider it not an item if either quantity or unit_price is missing
+2. Item List Processing and Validation:
+   - Mandatory Item Data Requirements:
+     * Each valid item must have at least 2 of the following:
+       - Item name (can be empty string)
+       - Unit price
+       - Quantity
+       - Total amount
+     * If only one field is present, treat as invalid data
+   - Data Quality Checks:
+     * Verify data consistency within the same row/column
+     * Rows with only item names or only numbers are likely incorrect
+     * Check if numbers in the same column have similar formats
    - Exclusion criteria:
-     * Rows with only notes/descriptions (no quantity/unit_price/amount)
+     * Rows with only notes/descriptions
      * Category/section text rows
      * Subtotal/total/intermediate total rows
      * Additional explanations or annotation rows
    - Item Name Processing:
-     * Treat empty string "" as valid data for item_name
      * Include additional explanations for items in item_name
      * Exclude independent note/description rows
    - Item Data Validation:
@@ -117,34 +121,32 @@ You are an expert in extracting invoice data. Please follow these detailed steps
      * Exclude if quantity and unit_price are present but it's clearly a subtotal/total row
      * Exclude if in doubt (adhere to data integrity principles)
 
-3. Amount Extraction Rules:
-   - Priority for amount verification:
-     * 1st priority: Explicit amounts at the top of the first page and bottom of the last page
-     * 2nd priority: Calculated amounts from the item list
-     * Always prioritize explicit amounts if there is a discrepancy
-   - Amount Location:
-     * First page: Search in the top or header area
-     * Last page: Search in the bottom or footer area
-   - Processing by Amount Type:
-     * Subtotal:
-       - Search keywords: "Subtotal", "Total before tax", etc.
-       - Extract amounts distinct from tax/total amounts
-     * Tax Amount:
-       - Search keywords: "Tax", "VAT", etc.
-       - Typically 10% of the subtotal, but always use the explicitly stated value
-     * Total Amount:
-       - Search keywords: "Total", "Grand Total", etc.
-       - Verify if it matches the sum of subtotal and tax amounts
-       - Prioritize the explicitly stated total amount if there is a discrepancy
-   - Amount Verification:
-     * Check for consistency if amounts are displayed multiple times
-     * Prioritize the first page amount if inconsistent
-     * Verify the relationship: Subtotal + Tax = Total
-     * Use explicitly displayed amounts if there is a discrepancy
-   - Negative Amount Handling:
-     * Negative amounts are possible for returns/discounts/refunds
-     * If the subtotal is negative, the tax amount should also be negative
-     * Handle various negative notations like minus signs, parentheses, etc.
+3. Amount Extraction and Verification:
+   - Initial Amount Extraction:
+     * Extract amounts from clearly labeled sections
+     * Record the location and context of each amount
+   - Multi-step Verification Process:
+     * Step 1: Compare extracted amounts with calculated totals
+     * Step 2: If discrepancy found:
+       - Re-verify each extracted amount
+       - Check for possible misclassification (e.g., tax as subtotal)
+       - Verify item list completeness
+     * Step 3: If discrepancy persists:
+       - Compare amounts across different pages
+       - Check for additional charges or discounts
+       - Look for explanatory notes
+     * Step 4: Final Verification:
+       - Verify: Total = Subtotal + Taxes
+       - Verify: Subtotal = Sum of item amounts
+       - Document any remaining discrepancies
+   - Amount Location Priority:
+     * First page header area: Primary source
+     * Last page footer area: Secondary source
+     * Item list calculations: Verification only
+   - Handling Discrepancies:
+     * If amounts don't match: Prioritize explicitly stated amounts
+     * Document the source of each amount
+     * Flag significant discrepancies for review
 
 4. Handling Empty Values:
    - Strings: Empty string ""
@@ -159,36 +161,39 @@ You are an expert in extracting invoice data. Please follow these detailed steps
    - Validate date formats (YYYY-MM-DD)
    - Handle fields with empty values if validation fails
 
-6. Amount Comparison and Verification:
-   - Compare the total amount of extracted items with the subtotal, tax, and total amounts
-   - If there is a discrepancy:
-     * Re-execute data extraction and verification
-     * Analyze the cause of the discrepancy and correct if possible
-     * Report the cause of the discrepancy if correction is not possible
-   - Verification Process:
-     * Verify the relationship: Subtotal + Tax = Total
-     * Check if the total amount of items matches the subtotal
-     * Verify if the tax is 10% of the subtotal (prioritize the explicitly stated value)
-
-7. Error Handling:
+6. Error Handling:
    - Extract only verifiable parts in case of format inconsistency
    - Extract only confirmed parts in case of incomplete data
    - Handle ambiguous data as empty values
 
-8. Data Verification and Accuracy Improvement:
-   - Compare the extracted data with the actual PDF data to verify accuracy
-   - If discrepancies are found:
-     * Re-evaluate the extraction process
-     * Identify potential causes for discrepancies
-     * Adjust extraction parameters or methods to improve accuracy
-     * Document findings and adjustments made to enhance data accuracy
+7. Extraction Quality Assurance:
+   - Primary Verification:
+     * Verify all required fields are present
+     * Check numerical consistency
+     * Validate date formats
+   - Secondary Verification:
+     * Cross-reference amounts across pages
+     * Verify item list completeness
+     * Check for missing or duplicate items
+   - Final Verification:
+     * Perform amount reconciliation
+     * Document any discrepancies
+     * Flag items requiring manual review
 
-9. PDF Data Extraction Process:
-   - Step 1: Verify the invoice amount (total amount, tax, and subtotal)
-   - Step 2: Check the number of items
-   - Step 3: Review detailed information for each item
-   - Step 4: Conduct a preliminary verification based on the extracted information
-   - Step 5: If the preliminary verification is successful, perform a secondary verification by comparing with the PDF file
+8. Re-verification Process:
+   - Trigger Conditions:
+     * Amount discrepancies detected
+     * Missing required fields
+     * Inconsistent item data
+   - Re-verification Steps:
+     * Re-extract all amounts independently
+     * Re-validate item list completeness
+     * Cross-check against original document
+     * Document changes and reasons
+   - Final Decision:
+     * Accept data only if verification passes
+     * Flag for manual review if issues persist
+     * Document verification results
 """
 
     if metadata:
