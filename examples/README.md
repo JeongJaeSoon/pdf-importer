@@ -72,7 +72,7 @@ examples/
 
 예시:
 
-- `sample_invoice_1.pdf`: 단일 인보이스 문서
+- `sample_invoice_1.pdf`: 단일 인보이스 문서 (1개)
 - `sample_invoice_2.pdf`: 2개의 인보이스가 포함된 문서
 - `sample_invoice_3.pdf`: 3개의 인보이스가 포함된 문서
 - `sample_invoice_4.pdf`: 4개의 인보이스가 포함된 문서
