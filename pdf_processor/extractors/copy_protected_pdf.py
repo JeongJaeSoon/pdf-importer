@@ -2,10 +2,10 @@ from typing import Any, Dict
 
 import fitz  # PyMuPDF
 
-from ..core.base import BasePDFExtractor
+from pdf_processor.extractors.base import BaseExtractor
 
 
-class CopyProtectedPDFExtractor(BasePDFExtractor):
+class CopyProtectedPDFExtractor(BaseExtractor):
     """복사 방지 기능이 설정된 PDF에서 데이터를 추출하는 클래스"""
 
     def extract_text(self) -> str:

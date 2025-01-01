@@ -3,19 +3,16 @@ from typing import List, Tuple
 
 import fitz
 
-from pdf_processor.processors.llm_processor import LLMProcessor
+from pdf_processor.processors.base import BaseProcessor
+from pdf_processor.utils.prompts import get_pdf_analysis_prompt
 
 logger = logging.getLogger(__name__)
 
 
-class PDFAnalyzer:
+class PDFAnalyzer(BaseProcessor):
     """PDF 파일 분석 및 분할을 위한 클래스"""
 
-    def __init__(self):
-        """PDF 분석기 초기화"""
-        self.llm_processor = LLMProcessor.get_instance()
-
-    async def analyze_pdf(self, pdf_path: str, num_pages: int) -> List[Tuple[int, int]]:
+    async def execute(self, pdf_path: str, num_pages: int) -> List[Tuple[int, int]]:
         """PDF 파일을 분석하여 페이지 범위 결정
 
         Args:
@@ -75,25 +72,14 @@ class PDFAnalyzer:
                 "required": ["page_ranges"],
             }
 
-            # LLM 분석 요청을 위한 시스템 메시지 구성
-            system_message = (
-                "당신은 PDF 문서에서 인보이스를 식별하고 페이지를 분할하는 전문가입니다. "
-                "다음 정보를 바탕으로 인보이스 페이지 범위를 결정해주세요:\n"
-                f"1. 전체 페이지 수: {total_pages}페이지\n"
-                f"2. 포함된 인보이스 수: {num_pages}개\n"
-                "3. 인보이스 구분 기준:\n"
-                "   - 각 인보이스는 일반적으로 새로운 페이지에서 시작됩니다.\n"
-                "   - 인보이스 번호, 날짜, 거래처 정보 등이 새로 시작되는 것이 새로운 인보이스의 시작점입니다.\n"
-                "   - 동일한 인보이스의 연속 페이지는 일반적으로 페이지 번호나 연속성을 나타내는 표시가 있습니다.\n"
-                "\n제공된 텍스트를 분석하여 정확히 {num_pages}개의 인보이스로 분할해주세요.\n"
-                "주의: 페이지 번호는 1부터 시작하며, 1부터 {total_pages} 사이의 값이어야 합니다."
-            )
+            # 프롬프트 생성
+            system_message = get_pdf_analysis_prompt(total_pages, num_pages)
 
-            # LLM 분석 결과
-            result = await self.llm_processor.extract_data(
-                pdf_path,
-                (0, total_pages - 1),
-                schema,
+            # LLM을 사용하여 데이터 추출
+            result = await self.llm.extract_data(
+                pdf_path=pdf_path,
+                page_range=(0, total_pages - 1),
+                schema=schema,
                 system_message=system_message,
             )
 

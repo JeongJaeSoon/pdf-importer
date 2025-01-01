@@ -1,8 +1,8 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuple
+from typing import Any
 
-from pdf_processor.processors.llm_processor import LLMProcessor
+from pdf_processor.core.llm import LLM
 
 logger = logging.getLogger(__name__)
 
@@ -12,17 +12,8 @@ class BaseProcessor(ABC):
 
     def __init__(self):
         """프로세서 초기화"""
-        self.llm_processor = LLMProcessor.get_instance()
+        self.llm = LLM.get_instance()
 
     @abstractmethod
-    async def process(self, pdf_path: str, page_range: Tuple[int, int]) -> Dict[str, Any]:
-        """PDF 파일의 특정 페이지 범위를 처리
-
-        Args:
-            pdf_path: PDF 파일 경로
-            page_range: 처리할 페이지 범위 (시작, 끝)
-
-        Returns:
-            추출된 데이터를 담은 딕셔너리
-        """
+    async def execute(self, pdf_path: str, *args: Any, **kwargs: Any) -> Any:
         pass
