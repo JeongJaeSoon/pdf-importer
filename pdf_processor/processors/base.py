@@ -8,10 +8,10 @@ logger = logging.getLogger(__name__)
 
 
 class BaseProcessor(ABC):
-    """모든 PDF 프로세서의 기본 클래스"""
+    """Base class for all PDF processors"""
 
     def __init__(self):
-        """프로세서 초기화"""
+        """Initialize processor"""
         self.llm = LLM.get_instance()
 
     @abstractmethod

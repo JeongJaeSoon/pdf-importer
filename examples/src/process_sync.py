@@ -13,13 +13,13 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from pdf_processor import PDFProcessor, PDFProcessType
 
-# .env 파일 로드
+# Load .env file
 load_dotenv()
 
-# Rich 콘솔 초기화
+# Initialize Rich console
 console = Console()
 
-# 로깅 설정
+# Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
@@ -27,67 +27,70 @@ logger = logging.getLogger(__name__)
 
 
 async def process_single_pdf(processor: PDFProcessor, pdf_path: Path) -> Dict:
-    """단일 PDF 파일 처리
+    """Process single PDF file
 
     Args:
-        processor: PDF 처리기
-        pdf_path: PDF 파일 경로
+        processor: PDF processor
+        pdf_path: PDF file path
 
     Returns:
-        처리 결과
+        Processing result
     """
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        # 진행 상태 표시를 위한 태스크 생성
-        task1 = progress.add_task(f"[cyan]{pdf_path.name} - 1단계: PDF 분석 중...[/]", total=None)
+        # Create task for progress display
+        task1 = progress.add_task(
+            f"[cyan]{pdf_path.name} - Step 1: Analyzing PDF...[/]", total=None
+        )
         task2 = progress.add_task(
-            f"[cyan]{pdf_path.name} - 2단계: 데이터 추출 중...[/]", visible=False
+            f"[cyan]{pdf_path.name} - Step 2: Extracting Data...[/]", visible=False
         )
 
         try:
-            # PDF 처리 실행
+            # Execute PDF processing
             results = await processor.process_pdf(
                 pdf_path=str(pdf_path),
                 process_type=PDFProcessType.INVOICE.value,
-                num_pages=1,  # 각 파일을 단일 인보이스로 처리
+                num_pages=1,  # Process each file as a single invoice
             )
 
-            # 진행 상태 업데이트
+            # Update progress status
             progress.update(
                 task1,
-                description=f"[green]{pdf_path.name} - 1단계: PDF 분석 완료[/]",
+                description=f"[green]{pdf_path.name} - Step 1: PDF Analysis Complete[/]",
+                completed=True,
             )
             progress.update(
                 task2,
-                visible=True,
-                description=f"[green]{pdf_path.name} - 2단계: 데이터 추출 완료[/]",
+                description=f"[green]{pdf_path.name} - Step 2: Data Extraction Complete[/]",
+                completed=True,
             )
 
-            # 결과 출력
-            console.print(f"\n[bold green]{pdf_path.name} - 처리 결과:[/]")
+            # Output results
+            console.print(f"\n[bold green]{pdf_path.name} - Processing Result:[/]")
             result_json = json.dumps(results, ensure_ascii=False, indent=2)
-            console.print(Panel(JSON(result_json), title="추출된 데이터", border_style="green"))
+            console.print(Panel(JSON(result_json), title="Extracted Data", border_style="green"))
 
             return results
 
         except Exception as e:
-            console.print(f"\n[bold red]{pdf_path.name} - 에러 발생:[/] {str(e)}")
+            console.print(f"\n[bold red]{pdf_path.name} - Error Occurred:[/] {str(e)}")
             logger.error(f"Error processing PDF {pdf_path.name}: {e}")
             raise
 
 
 async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[Dict]:
-    """여러 PDF 파일 처리
+    """Process multiple PDF files
 
     Args:
-        processor: PDF 처리기
-        pdf_files: PDF 파일 경로 리스트
+        processor: PDF processor
+        pdf_files: List of PDF file paths
 
     Returns:
-        처리 결과 리스트
+        List of processing results
     """
     results = []
     for pdf_path in pdf_files:
@@ -101,37 +104,37 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
 
 
 async def main():
-    """동기 처리 예제"""
-    # 환경 변수 확인
+    """Example of synchronous processing"""
+    # Check environment variables
     openai_api_key = os.getenv("OPENAI_API_KEY")
 
     if not openai_api_key:
-        raise ValueError("OPENAI_API_KEY 환경 변수가 필요합니다.")
+        raise ValueError("OPENAI_API_KEY environment variable is required.")
 
-    # PDF 파일 경로들
+    # PDF file paths
     samples_dir = Path(__file__).parent.parent / "samples" / "text"
     pdf_files = sorted(samples_dir.glob("sample_invoice_*.pdf"))
 
     if not pdf_files:
-        raise FileNotFoundError(f"PDF 파일을 찾을 수 없습니다: {samples_dir}")
+        raise FileNotFoundError(f"PDF files not found: {samples_dir}")
 
-    # 작업 정보 표시
+    # Display job information
     info_text = [
-        "[bold cyan]PDF 처리 시작 (동기 처리)[/]",
-        f"처리할 파일: [yellow]{', '.join(f.name for f in pdf_files)}[/]",
-        f"처리 타입: [blue]{PDFProcessType.INVOICE.value}[/]",
+        "[bold cyan]Starting PDF Processing (Synchronous)[/]",
+        f"Files to process: [yellow]{', '.join(f.name for f in pdf_files)}[/]",
+        f"Processing type: [blue]{PDFProcessType.INVOICE.value}[/]",
     ]
-    console.print(Panel("\n".join(info_text), title="작업 정보", border_style="blue"))
+    console.print(Panel("\n".join(info_text), title="Job Information", border_style="blue"))
 
     try:
-        # PDF 처리기 초기화
+        # Initialize PDF processor
         processor = PDFProcessor(openai_api_key=openai_api_key)
 
-        # PDF 파일들 처리
+        # Process PDF files
         await process_pdfs(processor, pdf_files)
 
     except Exception as e:
-        console.print(f"\n[bold red]에러 발생:[/] {str(e)}")
+        console.print(f"\n[bold red]Error Occurred:[/] {str(e)}")
         logger.error(f"Error processing PDFs: {e}")
         raise
 

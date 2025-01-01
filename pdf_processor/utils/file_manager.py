@@ -9,20 +9,20 @@ logger = logging.getLogger(__name__)
 
 
 class TempFileManager:
-    """임시 파일 관리를 위한 클래스"""
+    """Class for temporary file management"""
 
     def __init__(self):
         self._temp_files: List[Path] = []
 
     def create_temp_file(self, suffix: str = ".pdf", prefix: Optional[str] = None) -> Path:
-        """임시 파일 생성
+        """Create temporary file
 
         Args:
-            suffix: 파일 확장자 (기본값: .pdf)
-            prefix: 파일 이름 접두사 (선택사항)
+            suffix: File extension (default: .pdf)
+            prefix: File name prefix (optional)
 
         Returns:
-            생성된 임시 파일의 경로
+            Path to the created temporary file
         """
         temp_file = Path(tempfile.mktemp(suffix=suffix, prefix=prefix))
         self._temp_files.append(temp_file)
@@ -30,7 +30,7 @@ class TempFileManager:
         return temp_file
 
     def cleanup(self) -> None:
-        """모든 임시 파일 삭제"""
+        """Delete all temporary files"""
         for temp_file in self._temp_files:
             try:
                 if temp_file.exists():
@@ -50,15 +50,11 @@ class TempFileManager:
 
 @contextmanager
 def temp_files_scope(prefix: Optional[str] = None) -> Generator[TempFileManager, None, None]:
-    """임시 파일 관리를 위한 컨텍스트 매니저
+    """Context manager for temporary file management
 
     Example:
-        ```python
-        with temp_files_scope("invoice_") as file_manager:
-            temp_file = file_manager.create_temp_file()
-            # 임시 파일 사용
-            # 컨텍스트를 벗어나면 자동으로 cleanup 호출
-        ```
+        # Use temporary file
+        # cleanup is automatically called when exiting context
     """
     manager = TempFileManager()
     try:
@@ -68,20 +64,20 @@ def temp_files_scope(prefix: Optional[str] = None) -> Generator[TempFileManager,
 
 
 class PDFSplitManager:
-    """PDF 파일 분할 및 임시 파일 관리를 위한 클래스"""
+    """Class for PDF file splitting and temporary file management"""
 
     def __init__(self, original_pdf: Path):
         self.original_pdf = original_pdf
         self.temp_manager = TempFileManager()
 
     async def split_pdf(self, page_ranges: List[dict]) -> List[Path]:
-        """PDF 파일을 페이지 범위에 따라 분할
+        """PDF file split by page range
 
         Args:
-            page_ranges: 페이지 범위 리스트. 각 항목은 {"start_page": int, "end_page": int} 형식
+            page_ranges: List of page ranges. Each item is {"start_page": int, "end_page": int} format
 
         Returns:
-            분할된 PDF 파일 경로 리스트
+            List of paths to split PDF files
         """
         from PyPDF2 import PdfReader, PdfWriter
 
@@ -97,7 +93,7 @@ class PDFSplitManager:
             for page_num in range(start_page, end_page):
                 writer.add_page(reader.pages[page_num])
 
-            # 임시 파일 생성
+            # Create temporary file
             temp_file = self.temp_manager.create_temp_file(prefix=f"split_{i}_", suffix=".pdf")
 
             with open(temp_file, "wb") as output_file:
@@ -109,7 +105,7 @@ class PDFSplitManager:
         return split_files
 
     def cleanup(self):
-        """임시 파일 정리"""
+        """Clean up temporary files"""
         self.temp_manager.cleanup()
 
     def __enter__(self) -> "PDFSplitManager":

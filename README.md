@@ -1,103 +1,103 @@
 # PDF Processor
 
-PDF 파일에서 텍스트를 추출하고 LLM을 사용하여 구조화된 데이터로 변환하는 비동기 처리 패키지
+An asynchronous processing package that extracts text from PDF files and converts it into structured data using LLM.
 
-## 기능
+## Features
 
-- 다양한 PDF 유형 지원:
-  - 일반 텍스트 PDF
-  - 스캔된 PDF (OCR)
-  - 비밀번호 보호된 PDF
-  - 복사 방지 기능이 설정된 PDF
-- 동기/비동기 작업 처리 지원
-- Redis를 통한 작업 상태 관리 (비동기 처리)
-- AES-256 암호화를 통한 데이터 보안
-- LLM을 활용한 텍스트 구조화
-- 다중 인보이스 자동 분할 및 처리
-- 지능형 페이지 범위 분석
-- Function Calling을 통한 정확한 데이터 추출
+- Support for various PDF types:
+  - Plain text PDFs
+  - Scanned PDFs (OCR)
+  - Password-protected PDFs
+  - Copy-protected PDFs
+- Support for synchronous/asynchronous task processing
+- Task status management through Redis (asynchronous processing)
+- Data security through AES-256 encryption
+- Text structuring using LLM
+- Automatic splitting and processing of multiple invoices
+- Intelligent page range analysis
+- Accurate data extraction through Function Calling
 
-## 설치
+## Installation
 
-1. Python 3.13 이상이 필요합니다.
+1. Requires Python 3.13 or higher.
 
-2. Poetry를 사용하여 의존성 설치:
+2. Install dependencies using Poetry:
 
     ```bash
     poetry install
     ```
 
-3. 필요한 시스템 의존성:
+3. Required system dependencies:
 
-   - Redis 서버 (비동기 처리용)
-   - Tesseract OCR (스캔된 PDF 처리용)
-   - Poppler (PDF 이미지 변환용)
+   - Redis server (for asynchronous processing)
+   - Tesseract OCR (for processing scanned PDFs)
+   - Poppler (for PDF image conversion)
 
-## 기본 사용법
+## Basic Usage
 
-### 동기 처리
+### Synchronous Processing
 
 ```python
 from pdf_processor import PDFProcessor, PDFProcessType
 
-# 처리기 초기화
+# Initialize processor
 processor = PDFProcessor(
     openai_api_key="your-openai-api-key",
-    model_name="gpt-4",  # 선택사항, 기본값: gpt-4
-    max_concurrent=2     # 선택사항, 기본값: 2
+    model_name="gpt-4",  # Optional, default: gpt-4
+    max_concurrent=2     # Optional, default: 2
 )
 
-# PDF 처리 (단일 또는 다중 인보이스)
+# Process PDF (single or multiple invoices)
 task_id = await processor.process_pdf(
     pdf_path="sample.pdf",
     process_type=PDFProcessType.INVOICE.value,
-    num_pages=1,  # PDF에 포함된 인보이스 수
+    num_pages=1,  # Number of invoices in the PDF
     async_processing=False
 )
 ```
 
-### 비동기 처리
+### Asynchronous Processing
 
 ```python
 import asyncio
 from pdf_processor import PDFProcessor, PDFProcessType
 
 async def main():
-    # 처리기 초기화
+    # Initialize processor
     processor = PDFProcessor(
         redis_url="redis://localhost:6379/0",
         openai_api_key="your-openai-api-key",
         redis_encryption_key="your-redis-encryption-key",
-        model_name="gpt-4",  # 선택사항
-        max_concurrent=2     # 선택사항
+        model_name="gpt-4",  # Optional
+        max_concurrent=2     # Optional
     )
 
     try:
-        # 작업자 시작
+        # Start worker
         worker_task = asyncio.create_task(processor.start_worker())
 
-        # 작업 제출
+        # Submit task
         task_id = await processor.process_pdf(
             pdf_path="sample.pdf",
             process_type=PDFProcessType.INVOICE.value,
-            num_pages=1,  # PDF에 포함된 인보이스 수
+            num_pages=1,  # Number of invoices in the PDF
             async_processing=True
         )
 
-        # 작업 상태 확인
+        # Check task status
         while True:
             status = await processor.get_task_status(task_id)
             if status in ["completed", "failed"]:
                 break
             await asyncio.sleep(1)
 
-        # 결과 조회
+        # Get results
         if status == "completed":
             result = await processor.get_task_result(task_id)
             print(result)
 
     finally:
-        # 작업자 중지
+        # Stop worker
         await processor.stop_worker()
         await worker_task
 
@@ -105,60 +105,60 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-## 환경 변수
+## Environment Variables
 
-필요한 환경 변수:
+Required environment variables:
 
 ```bash
-# OpenAI API 키 (필수)
+# OpenAI API Key (Required)
 OPENAI_API_KEY=your-openai-api-key
 
-# Redis 설정 (비동기 처리 시 필수)
+# Redis Configuration (Required for async processing)
 REDIS_URL=redis://localhost:6379/0
-REDIS_ENCRYPTION_KEY=your-redis-encryption-key  # 32바이트 암호화 키
+REDIS_ENCRYPTION_KEY=your-redis-encryption-key  # 32-byte encryption key
 
-# LLM 설정 (선택)
-MAX_CONCURRENT=2  # 최대 동시 실행 수 (기본값: 2)
-MODEL_NAME=gpt-4  # 사용할 OpenAI 모델 (기본값: gpt-4)
+# LLM Configuration (Optional)
+MAX_CONCURRENT=2  # Maximum concurrent executions (default: 2)
+MODEL_NAME=gpt-4  # OpenAI model to use (default: gpt-4)
 
-# 로깅 설정 (선택)
+# Logging Configuration (Optional)
 LOG_LEVEL=INFO
 
-# OCR 설정 (선택)
+# OCR Configuration (Optional)
 TESSERACT_CMD=/usr/local/bin/tesseract
 TESSERACT_LANG=kor+eng
 ```
 
-## 주요 기능 설명
+## Key Features Explained
 
-### 페이지 번호 처리
+### Page Number Handling
 
-- 사용자 인터페이스에서는 페이지 번호가 1부터 시작합니다.
-- 내부적으로는 0-based 인덱스로 처리되지만, 모든 로그와 출력은 1-based로 표시됩니다.
+- Page numbers start from 1 in the user interface
+- Internally processed with 0-based index, but all logs and outputs are displayed as 1-based
 
-### 다중 인보이스 처리
+### Multiple Invoice Processing
 
-- 하나의 PDF 파일에 여러 개의 인보이스가 포함된 경우 처리 가능
-- LLM이 자동으로 각 인보이스의 페이지 범위를 분석
-- 분석 실패 시 균등 분할 방식으로 폴백
-- 인보이스 수를 정확히 지정해야 함
+- Can process PDFs containing multiple invoices
+- LLM automatically analyzes page ranges for each invoice
+- Falls back to equal distribution if analysis fails
+- Requires accurate specification of invoice count
 
-### 데이터 추출 및 검증
+### Data Extraction and Validation
 
-- Function Calling을 통한 정확한 데이터 추출
-- 엄격한 데이터 검증 및 정합성 확인
-- 불완전하거나 불확실한 데이터는 빈 값으로 처리
+- Accurate data extraction through Function Calling
+- Strict data validation and consistency checks
+- Empty values for incomplete or uncertain data
 
-### 오류 처리
+### Error Handling
 
-- 형식 불일치나 누락된 데이터는 빈 값으로 처리
-- 검증 실패 시 해당 필드만 빈 값으로 설정
-- 작업 실패 시 상세한 오류 메시지 제공
+- Empty values for format mismatches or missing data
+- Only affected fields set to empty values on validation failure
+- Detailed error messages for task failures
 
-## 예제 및 테스트
+## Examples and Testing
 
-자세한 예제와 테스트 방법은 [examples/README.md](examples/README.md)를 참조하세요.
+For detailed examples and testing methods, refer to [examples/README.md](examples/README.md).
 
-## 라이선스
+## License
 
 Apache 2.0 License

@@ -6,14 +6,14 @@ from pdf_processor.extractors.base import BaseExtractor
 
 
 class PasswordProtectedPDFExtractor(BaseExtractor):
-    """비밀번호로 보호된 PDF에서 데이터를 추출하는 클래스"""
+    """Class for extracting data from password-protected PDFs"""
 
     def extract_text(self) -> str:
         try:
             if not self.password:
-                raise ValueError("비밀번호가 필요한 PDF입니다.")
+                raise ValueError("Password is required for this PDF.")
 
-            # PyMuPDF를 사용하여 PDF 열기 (비밀번호 필수)
+            # Open PDF using PyMuPDF (password required)
             doc = fitz.open(self.file_path, password=self.password)
             text = ""
 
@@ -29,7 +29,7 @@ class PasswordProtectedPDFExtractor(BaseExtractor):
     def extract_metadata(self) -> Dict[str, Any]:
         try:
             if not self.password:
-                raise ValueError("비밀번호가 필요한 PDF입니다.")
+                raise ValueError("Password is required for this PDF.")
 
             doc = fitz.open(self.file_path, password=self.password)
             metadata = {

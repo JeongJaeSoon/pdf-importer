@@ -6,7 +6,7 @@ from pdf_processor.extractors.base import BaseExtractor
 
 
 class TextPDFExtractor(BaseExtractor):
-    """일반 텍스트 PDF에서 데이터를 추출하는 클래스"""
+    """Class for extracting data from plain text PDFs"""
 
     def extract_text(self) -> str:
         reader = PdfReader(self.file_path, password=self.password)

@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 
 class BaseExtractor(ABC):
-    """PDF 데이터 추출을 위한 기본 추상 클래스"""
+    """Base abstract class for PDF data extraction"""
 
     def __init__(self, file_path: str | Path, password: Optional[str] = None):
         self.file_path = Path(file_path)
@@ -12,10 +12,10 @@ class BaseExtractor(ABC):
 
     @abstractmethod
     def extract_text(self) -> str:
-        """PDF에서 텍스트를 추출하는 메서드"""
+        """Method to extract text from PDF"""
         pass
 
     @abstractmethod
     def extract_metadata(self) -> Dict[str, Any]:
-        """PDF의 메타데이터를 추출하는 메서드"""
+        """Method to extract metadata from PDF"""
         pass

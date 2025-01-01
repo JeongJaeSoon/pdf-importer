@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class PDFProcessor:
-    """PDF 처리를 위한 메인 클래스"""
+    """Main class for PDF processing"""
 
     def __init__(
         self,
@@ -20,14 +20,14 @@ class PDFProcessor:
         model_name: str = "gpt-4",
         max_concurrent: int = 2,
     ):
-        """PDF 처리기 초기화
+        """Initialize PDF processor
 
         Args:
-            redis_url: Redis 서버 URL (비동기 처리 시 필수)
-            openai_api_key: OpenAI API 키 (필수)
-            redis_encryption_key: Redis 암호화 키 (비동기 처리 시 필수)
-            model_name: 사용할 OpenAI 모델 이름 (기본값: "gpt-4")
-            max_concurrent: 최대 동시 실행 수 (기본값: 2)
+            redis_url: Redis server URL (required for async processing)
+            openai_api_key: OpenAI API key (required)
+            redis_encryption_key: Redis encryption key (required for async processing)
+            model_name: OpenAI model name to use (default: "gpt-4")
+            max_concurrent: Maximum number of concurrent executions (default: 2)
         """
         self.pdf_analyzer = None
         self.processor = None
@@ -36,14 +36,14 @@ class PDFProcessor:
         self.worker = None
 
         if not openai_api_key:
-            raise ValueError("OpenAI API 키가 필요합니다.")
+            raise ValueError("OpenAI API key is required.")
 
-        # LLM 프로세서 초기화
+        # Initialize LLM processor
         from pdf_processor.core.llm import LLM
 
         LLM.initialize(api_key=openai_api_key, model_name=model_name, max_concurrent=max_concurrent)
 
-        # 비동기 처리를 위한 Redis 초기화
+        # Initialize Redis for async processing
         if redis_url and redis_encryption_key:
             self.redis_queue = RedisQueue.initialize(redis_url, redis_encryption_key)
             self.worker = Worker(self.redis_queue)
@@ -56,28 +56,28 @@ class PDFProcessor:
         metadata: Optional[Dict] = None,
         async_processing: bool = False,
     ) -> Any:
-        """PDF 처리 시작
+        """Start PDF processing
 
         Args:
-            pdf_path: PDF 파일 경로
-            process_type: 처리 유형 (PDFProcessType)
-            num_pages: 예상되는 인보이스 수
-            metadata: PDF 파일 관련 메타데이터 (선택사항)
-            async_processing: 비동기 처리 여부 (기본값: False)
+            pdf_path: Path to PDF file
+            process_type: Processing type (PDFProcessType)
+            num_pages: Expected number of invoices
+            metadata: PDF file metadata (optional)
+            async_processing: Whether to process asynchronously (default: False)
 
         Returns:
-            동기 처리: 처리 결과
-            비동기 처리: 작업 ID
+            Synchronous processing: processing result
+            Asynchronous processing: task ID
         """
-        # 비동기 처리
+        # Asynchronous processing
         if async_processing:
             if not self.redis_queue or not self.worker:
-                raise ValueError("비동기 처리를 위해서는 Redis 설정이 필요합니다.")
+                raise ValueError("Redis configuration is required for asynchronous processing.")
 
-            # 작업 ID 생성
+            # Generate task ID
             task_id = f"task_{uuid.uuid4()}"
 
-            # 작업 데이터 준비
+            # Prepare task data
             task_data = {
                 "task_id": task_id,
                 "pdf_path": pdf_path,
@@ -86,11 +86,11 @@ class PDFProcessor:
                 "metadata": metadata,
             }
 
-            # 작업 큐에 추가
+            # Add task to queue
             await self.redis_queue.enqueue(task_data)
             return task_id
 
-        # 동기 처리
+        # Synchronous processing
         worker = Worker(None)
         task_data = {
             "task_id": f"task_{uuid.uuid4()}",
@@ -103,25 +103,25 @@ class PDFProcessor:
         return task_data["task_id"]
 
     async def get_task_status(self, task_id: str) -> Optional[str]:
-        """작업 상태 조회"""
+        """Get task status"""
         if not self.redis_queue:
-            raise ValueError("작업 상태 조회를 위해서는 Redis 설정이 필요합니다.")
+            raise ValueError("Redis configuration is required to get task status.")
         status = await self.redis_queue.get_task_status(task_id)
         return status.value if status else None
 
     async def get_task_result(self, task_id: str) -> Optional[Any]:
-        """작업 결과 조회"""
+        """Get task result"""
         if not self.redis_queue:
-            raise ValueError("작업 결과 조회를 위해서는 Redis 설정이 필요합니다.")
+            raise ValueError("Redis configuration is required to get task result.")
         return await self.redis_queue.get_result(task_id)
 
     async def start_worker(self) -> None:
-        """작업자 시작"""
+        """Start worker"""
         if not self.worker:
-            raise ValueError("작업자 시작을 위해서는 Redis 설정이 필요합니다.")
+            raise ValueError("Redis configuration is required to start worker.")
         await self.worker.start()
 
     async def stop_worker(self) -> None:
-        """작업자 중지"""
+        """Stop worker"""
         if self.worker:
             await self.worker.stop()

@@ -2,25 +2,25 @@ from typing import Dict, Optional
 
 
 def _format_metadata(metadata: Optional[Dict] = None) -> str:
-    """메타데이터를 프롬프트에 포함시킬 수 있는 형식으로 변환
+    """Convert metadata to a format that can be included in prompts
 
     Args:
-        metadata: 메타데이터 딕셔너리 (선택사항)
+        metadata: Metadata dictionary (optional)
 
     Returns:
-        포맷된 메타데이터 문자열
+        Formatted metadata string
     """
     if not metadata:
         return ""
 
     formatted_lines = []
     for key, value in metadata.items():
-        # 리스트인 경우 각 항목을 들여쓰기하여 표시
+        # For list items, display with indentation
+        # For dictionaries, process recursively
         if isinstance(value, list):
             formatted_lines.append(f"{key}:")
             for item in value:
                 formatted_lines.append(f"  - {item}")
-        # 딕셔너리인 경우 재귀적으로 처리
         elif isinstance(value, dict):
             formatted_lines.append(f"{key}:")
             sub_items = _format_metadata(value).split("\n")
@@ -54,6 +54,7 @@ Based on the following information, please determine the page ranges for each in
    - Each invoice typically starts on a new page.
    - New invoice starts are indicated by invoice numbers, dates, and customer information.
    - Consecutive pages of the same invoice usually have page numbers or continuity indicators.
+   - DO NOT translate or modify any text content - analyze it as is.
 """
 
     if metadata:
@@ -64,11 +65,13 @@ Based on the following information, please determine the page ranges for each in
 
 Use the above additional information to perform more accurate page splitting.
 If customer_names are provided, match them with the customer information of each invoice.
+Remember to match the exact text as it appears in the document, without translation.
 """
 
     base_prompt += f"""
 Analyze the provided text and split it into exactly {num_pages} invoices.
 Note: Page numbers start from 1 and should be between 1 and {total_pages}.
+Important: Do not translate or modify any text content during analysis.
 """
 
     return base_prompt
@@ -95,11 +98,12 @@ You are an expert in extracting invoice data. Please follow these detailed steps
    - No assumptions or guesses
    - Prefer displayed values over calculated ones
    - Extract all amounts as numbers without commas/currency symbols
+   - IMPORTANT: Keep all text in its original language - DO NOT translate
 
 2. Item List Processing and Validation:
    - Mandatory Item Data Requirements:
      * Each valid item must have at least 2 of the following:
-       - Item name (can be empty string)
+       - Item name (can be empty string, but must be in original language)
        - Unit price
        - Quantity
        - Total amount
@@ -115,6 +119,7 @@ You are an expert in extracting invoice data. Please follow these detailed steps
      * Additional explanations or annotation rows
    - Item Name Processing:
      * Include additional explanations for items in item_name
+     * Keep all text in its original language
      * Exclude independent note/description rows
    - Item Data Validation:
      * Exclude if item_name is present but quantity/unit_price is missing
@@ -125,6 +130,7 @@ You are an expert in extracting invoice data. Please follow these detailed steps
    - Initial Amount Extraction:
      * Extract amounts from clearly labeled sections
      * Record the location and context of each amount
+     * Keep labels in their original language
    - Multi-step Verification Process:
      * Step 1: Compare extracted amounts with calculated totals
      * Step 2: If discrepancy found:
@@ -160,17 +166,20 @@ You are an expert in extracting invoice data. Please follow these detailed steps
    - Verify the accuracy of amount calculations
    - Validate date formats (YYYY-MM-DD)
    - Handle fields with empty values if validation fails
+   - Keep all text in its original language
 
 6. Error Handling:
    - Extract only verifiable parts in case of format inconsistency
    - Extract only confirmed parts in case of incomplete data
    - Handle ambiguous data as empty values
+   - Do not attempt to translate or modify text content
 
 7. Extraction Quality Assurance:
    - Primary Verification:
      * Verify all required fields are present
      * Check numerical consistency
      * Validate date formats
+     * Ensure text remains in original language
    - Secondary Verification:
      * Cross-reference amounts across pages
      * Verify item list completeness
@@ -194,6 +203,16 @@ You are an expert in extracting invoice data. Please follow these detailed steps
      * Accept data only if verification passes
      * Flag for manual review if issues persist
      * Document verification results
+
+9. Language and Text Handling:
+   - Maintain original language:
+     * Do not translate any text content
+     * Keep company names, addresses, and descriptions in their original form
+     * Preserve original formatting of dates and numbers
+   - Character encoding:
+     * Preserve special characters and symbols
+     * Maintain original text encoding
+     * Handle multi-byte characters correctly
 """
 
     if metadata:
@@ -203,7 +222,8 @@ You are an expert in extracting invoice data. Please follow these detailed steps
 Additional Information:
 {metadata_str}
 
-Use this information for more accurate extraction. Match customer_names with invoice data if provided.
+Use this information for more accurate extraction.
+Match customer_names with invoice data if provided, maintaining original text.
 """
 
     if analysis_reason:
@@ -213,6 +233,7 @@ Analysis Reason:
 {analysis_reason}
 
 Use this analysis to prioritize amount information locations.
+Remember to keep all extracted text in its original language.
 """
 
     return base_prompt
