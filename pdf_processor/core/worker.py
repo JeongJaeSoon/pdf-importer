@@ -2,22 +2,22 @@ import asyncio
 import logging
 from typing import Any, Dict, Type
 
-from pdf_processor.core.pdf_analyzer import PDFAnalyzer
+from pdf_processor.core.llm import LLM
 from pdf_processor.core.queue import BaseQueue, TaskStatus
 from pdf_processor.processors.base import BaseProcessor
-from pdf_processor.processors.invoice_processor import InvoiceProcessor
-from pdf_processor.processors.llm_processor import LLMProcessor
+from pdf_processor.processors.invoice import Invoice
+from pdf_processor.processors.pdf_analyzer import PDFAnalyzer
 from pdf_processor.utils.constants import PDFProcessType
 
 logger = logging.getLogger(__name__)
 
 
-class PDFWorker:
+class Worker:
     """비동기 PDF 처리 작업자"""
 
     # 처리 타입별 프로세서 매핑
     PROCESSORS = {
-        PDFProcessType.INVOICE: InvoiceProcessor,
+        PDFProcessType.INVOICE: Invoice,
         # 다른 처리 타입들은 구현 후 여기에 추가
         # PDFProcessType.RESUME: ResumeProcessor,
         # PDFProcessType.CONTRACT: ContractProcessor,
@@ -27,8 +27,8 @@ class PDFWorker:
     def __init__(self, queue: BaseQueue):
         self.queue = queue
         self.running = False
-        # LLMProcessor 초기화
-        self.llm_processor = LLMProcessor.get_instance()
+        # LLM 초기화
+        self.llm = LLM.get_instance()
 
     def _get_processor_class(self, process_type: str) -> Type[BaseProcessor]:
         """처리 타입에 맞는 프로세서 클래스 반환"""
@@ -70,7 +70,7 @@ class PDFWorker:
 
             # PDF 분석기 초기화
             analyzer = PDFAnalyzer()
-            page_ranges = await analyzer.analyze_pdf(pdf_path, num_pages)
+            page_ranges = await analyzer.execute(pdf_path, num_pages)
 
             # 처리 타입에 맞는 프로세서 초기화
             processor_class = self._get_processor_class(process_type)
@@ -80,7 +80,7 @@ class PDFWorker:
             results = []
             for page_range in page_ranges:
                 try:
-                    result = await processor.process(pdf_path, page_range)
+                    result = await processor.execute(pdf_path, page_range)
                     results.append(result)
                 except Exception as e:
                     logger.error(f"페이지 범위 {page_range} 처리 중 오류 발생: {e}")

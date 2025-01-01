@@ -9,15 +9,15 @@ from openai import AsyncOpenAI
 logger = logging.getLogger(__name__)
 
 
-class LLMProcessor:
+class LLM:
     """LLM을 사용한 데이터 추출 프로세서"""
 
-    _instance: Optional["LLMProcessor"] = None
+    _instance: Optional["LLM"] = None
     _client: Optional[AsyncOpenAI] = None
     _semaphore: Optional[asyncio.Semaphore] = None
     _model_name: Optional[str] = None
 
-    def __new__(cls, api_key: Optional[str] = None) -> "LLMProcessor":
+    def __new__(cls, api_key: Optional[str] = None) -> "LLM":
         if not cls._instance:
             cls._instance = super().__new__(cls)
         return cls._instance
@@ -27,10 +27,8 @@ class LLMProcessor:
         pass
 
     @classmethod
-    def initialize(
-        cls, api_key: str, model_name: str = "gpt-4", max_concurrent: int = 2
-    ) -> "LLMProcessor":
-        """LLMProcessor 초기화 (처리 시작 시 한 번만 호출)
+    def initialize(cls, api_key: str, model_name: str = "gpt-4", max_concurrent: int = 2) -> "LLM":
+        """LLM 초기화 (처리 시작 시 한 번만 호출)
 
         Args:
             api_key: OpenAI API 키
@@ -45,12 +43,10 @@ class LLMProcessor:
         return cls._instance
 
     @classmethod
-    def get_instance(cls) -> "LLMProcessor":
-        """LLMProcessor 인스턴스 반환"""
+    def get_instance(cls) -> "LLM":
+        """LLM 인스턴스 반환"""
         if not cls._instance or not cls._client or not cls._semaphore:
-            raise RuntimeError(
-                "LLMProcessor가 초기화되지 않았습니다. initialize()를 먼저 호출하세요."
-            )
+            raise RuntimeError("LLM가 초기화되지 않았습니다. initialize()를 먼저 호출하세요.")
         return cls._instance
 
     def _create_function_schema(self, schema: Dict[str, Any]) -> Dict[str, Any]:

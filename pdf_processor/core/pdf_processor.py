@@ -3,7 +3,7 @@ import uuid
 from typing import Any, Optional
 
 from pdf_processor.core.queue_redis import RedisQueue
-from pdf_processor.core.worker import PDFWorker
+from pdf_processor.core.worker import Worker
 from pdf_processor.utils.constants import PDFProcessType
 
 logger = logging.getLogger(__name__)
@@ -39,16 +39,14 @@ class PDFProcessor:
             raise ValueError("OpenAI API 키가 필요합니다.")
 
         # LLM 프로세서 초기화
-        from pdf_processor.processors.llm_processor import LLMProcessor
+        from pdf_processor.core.llm import LLM
 
-        LLMProcessor.initialize(
-            api_key=openai_api_key, model_name=model_name, max_concurrent=max_concurrent
-        )
+        LLM.initialize(api_key=openai_api_key, model_name=model_name, max_concurrent=max_concurrent)
 
         # 비동기 처리를 위한 Redis 초기화
         if redis_url and redis_encryption_key:
             self.redis_queue = RedisQueue.initialize(redis_url, redis_encryption_key)
-            self.worker = PDFWorker(self.redis_queue)
+            self.worker = Worker(self.redis_queue)
 
     async def process_pdf(
         self,
@@ -90,7 +88,7 @@ class PDFProcessor:
             return task_id
 
         # 동기 처리
-        worker = PDFWorker(None)
+        worker = Worker(None)
         task_data = {
             "task_id": f"task_{uuid.uuid4()}",
             "pdf_path": pdf_path,

@@ -3,10 +3,10 @@ from typing import Any, Dict
 import pytesseract
 from pdf2image import convert_from_path
 
-from ..core.base import BasePDFExtractor
+from pdf_processor.extractors.base import BaseExtractor
 
 
-class ScannedPDFExtractor(BasePDFExtractor):
+class ScannedPDFExtractor(BaseExtractor):
     """스캔된 PDF에서 OCR을 통해 데이터를 추출하는 클래스"""
 
     def extract_text(self) -> str:
