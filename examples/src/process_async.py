@@ -8,6 +8,7 @@ from typing import Dict, List, Optional
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.json import JSON
+from rich.logging import RichHandler
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -21,8 +22,19 @@ console = Console()
 
 # 로깅 설정
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(message)s",
+    handlers=[
+        RichHandler(
+            console=console, show_time=True, show_path=False, markup=True, rich_tracebacks=True
+        )
+    ],
 )
+
+# httpx 로거 설정
+httpx_logger = logging.getLogger("httpx")
+httpx_logger.setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,31 +53,45 @@ async def process_single_pdf(
     """
     with Progress(
         SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
+        TextColumn("{task.description}", justify="left"),
         console=console,
+        transient=False,  # 진행 상태를 화면에 유지
+        expand=False,  # 전체 너비 사용 안 함
     ) as progress:
         task = progress.add_task(f"[cyan]{pdf_path.name} - 처리 중...[/]", total=None)
         status = None
+        prev_status = None
 
         while True:
             status = await processor.get_task_status(task_id)
-            progress.update(
-                task,
-                description=f"[bold blue]{pdf_path.name} - 현재 상태:[/] [yellow]{status}[/]",
-            )
+
+            # 상태가 변경된 경우에만 업데이트
+            if status != prev_status:
+                # 이전 상태 출력을 완료하고 새 줄 추가
+                if prev_status:
+                    progress.print()
+                    console.print()
+
+                progress.update(
+                    task,
+                    description=f"[bold blue]{pdf_path.name} - 현재 상태:[/] [yellow]{status}[/]",
+                )
+                prev_status = status
 
             if status == "completed":
+                progress.print()
                 console.print()
                 result = await processor.get_task_result(task_id)
-                console.print(f"\n[bold green]{pdf_path.name} - 처리 결과:[/]")
+                console.print(f"[bold green]{pdf_path.name} - 처리 결과:[/]")
                 result_json = json.dumps(result, ensure_ascii=False, indent=2)
                 console.print(Panel(JSON(result_json), title="추출된 데이터", border_style="green"))
                 return result
 
             elif status == "failed":
+                progress.print()
                 console.print()
                 error_info = await processor.get_task_result(task_id)
-                console.print(f"\n[bold red]{pdf_path.name} - 작업 실패[/]")
+                console.print(f"[bold red]{pdf_path.name} - 작업 실패[/]")
                 if error_info:
                     console.print(
                         f"[red]에러 메시지:[/] {error_info.get('error', '알 수 없는 오류')}"
