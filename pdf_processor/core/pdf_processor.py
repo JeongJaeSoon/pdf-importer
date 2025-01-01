@@ -48,7 +48,7 @@ class PDFProcessor:
         # 비동기 처리를 위한 Redis 초기화
         if redis_url and redis_encryption_key:
             self.redis_queue = RedisQueue.initialize(redis_url, redis_encryption_key)
-            self.worker = PDFWorker(self.redis_queue, openai_api_key)
+            self.worker = PDFWorker(self.redis_queue)
 
     async def process_pdf(
         self,
@@ -90,7 +90,7 @@ class PDFProcessor:
             return task_id
 
         # 동기 처리
-        worker = PDFWorker(None, self.openai_api_key)
+        worker = PDFWorker(None)
         task_data = {
             "task_id": f"task_{uuid.uuid4()}",
             "pdf_path": pdf_path,

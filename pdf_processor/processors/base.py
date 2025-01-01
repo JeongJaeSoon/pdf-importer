@@ -10,13 +10,9 @@ logger = logging.getLogger(__name__)
 class BaseProcessor(ABC):
     """모든 PDF 프로세서의 기본 클래스"""
 
-    def __init__(self, openai_api_key: str):
-        """프로세서 초기화
-
-        Args:
-            openai_api_key: OpenAI API 키
-        """
-        self.llm_processor = LLMProcessor.initialize(openai_api_key)
+    def __init__(self):
+        """프로세서 초기화"""
+        self.llm_processor = LLMProcessor.get_instance()
 
     @abstractmethod
     async def process(self, pdf_path: str, page_range: Tuple[int, int]) -> Dict[str, Any]:
