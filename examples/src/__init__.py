@@ -1,3 +1,3 @@
-"""PDF Processor 패키지의 예제 프로그램"""
+"""Example programs for the PDF Processor package"""
 
 __version__ = "0.1.0"

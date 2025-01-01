@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 
 class TaskStatus(Enum):
-    """작업 상태"""
+    """Task Status"""
 
     PENDING = "pending"
     PROCESSING = "processing"
@@ -13,34 +13,34 @@ class TaskStatus(Enum):
 
 
 class BaseQueue(ABC):
-    """작업 큐 인터페이스"""
+    """Task Queue Interface"""
 
     @abstractmethod
     async def enqueue(self, task_data: Dict[str, Any]) -> None:
-        """작업 추가"""
+        """Add task"""
         pass
 
     @abstractmethod
     async def dequeue(self) -> Optional[Dict[str, Any]]:
-        """작업 가져오기"""
+        """Get task"""
         pass
 
     @abstractmethod
     async def store_result(self, task_id: str, result: Any) -> None:
-        """작업 결과 저장"""
+        """Save task result"""
         pass
 
     @abstractmethod
     async def get_result(self, task_id: str) -> Optional[Any]:
-        """작업 결과 조회"""
+        """Get task result"""
         pass
 
     @abstractmethod
     async def update_task_status(self, task_id: str, status: TaskStatus) -> None:
-        """작업 상태 업데이트"""
+        """Update task status"""
         pass
 
     @abstractmethod
     async def get_task_status(self, task_id: str) -> Optional[TaskStatus]:
-        """작업 상태 조회"""
+        """Get task status"""
         pass

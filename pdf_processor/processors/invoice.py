@@ -9,23 +9,33 @@ logger = logging.getLogger(__name__)
 
 
 class Invoice(BaseProcessor):
-    """인보이스 데이터 추출을 위한 프로세서"""
+    """Processor for invoice data extraction"""
 
-    async def execute(self, pdf_path: str, page_range: Tuple[int, int]) -> Optional[Dict]:
-        """인보이스 데이터 추출
+    async def execute(
+        self,
+        pdf_path: str,
+        page_range: Tuple[int, int],
+        analysis_reason: Optional[str] = None,
+        metadata: Optional[Dict] = None,
+    ) -> Optional[Dict]:
+        """Extract invoice data
 
         Args:
-            pdf_path: PDF 파일 경로
-            page_range: 처리할 페이지 범위 (시작, 끝) - 0-based index
+            pdf_path: Path to PDF file
+            page_range: Page range to process (start, end) - 0-based index
+            analysis_reason: Reason for page range determination provided by PDF analyzer (optional)
+            metadata: PDF file related metadata (optional)
 
         Returns:
-            추출된 인보이스 데이터 또는 None (실패 시)
+            Extracted invoice data or None (if failed)
         """
         try:
-            # 프롬프트 생성
-            system_message = get_invoice_processor_prompt()
+            # Generate prompt (including analysis reason and metadata)
+            system_message = get_invoice_processor_prompt(
+                analysis_reason=analysis_reason, metadata=metadata
+            )
 
-            # LLM을 사용하여 데이터 추출
+            # Extract data using LLM
             result = await self.llm.extract_data(
                 pdf_path=pdf_path,
                 page_range=page_range,
@@ -34,12 +44,12 @@ class Invoice(BaseProcessor):
             )
 
             if not result:
-                logger.error("인보이스 데이터 추출 실패")
+                logger.error("Failed to extract invoice data")
                 return None
 
-            logger.info("인보이스 데이터 추출 성공")
+            logger.info("Successfully extracted invoice data")
             return result
 
         except Exception as e:
-            logger.error(f"인보이스 처리 중 오류 발생: {e}")
+            logger.error(f"Error occurred during invoice processing: {e}")
             return None

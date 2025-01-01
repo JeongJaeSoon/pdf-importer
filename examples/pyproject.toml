@@ -8,7 +8,7 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.13"
 python-dotenv = "^1.0.0"
-pdf-processor = {path = "..", develop = true}  # 로컬 패키지 참조
+pdf-processor = {path = "..", develop = true}  # Local package reference
 rich = "^13.7.0"
 
 [build-system]

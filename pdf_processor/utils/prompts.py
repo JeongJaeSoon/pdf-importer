@@ -1,54 +1,237 @@
-"""PDF 처리를 위한 프롬프트 모음"""
+from typing import Dict, Optional
 
 
-def get_pdf_analysis_prompt(total_pages: int, num_invoices: int) -> str:
-    """PDF 분석을 위한 프롬프트 생성
+def _format_metadata(metadata: Optional[Dict] = None) -> str:
+    """Convert metadata to a format that can be included in prompts
 
     Args:
-        total_pages: 전체 페이지 수
-        num_invoices: 예상되는 인보이스 수
+        metadata: Metadata dictionary (optional)
 
     Returns:
-        프롬프트 문자열
+        Formatted metadata string
     """
-    return (
-        "당신은 PDF 문서에서 인보이스를 식별하고 페이지를 분할하는 전문가입니다. "
-        "다음 정보를 바탕으로 인보이스 페이지 범위를 결정해주세요:\n"
-        f"1. 전체 페이지 수: {total_pages}페이지\n"
-        f"2. 포함된 인보이스 수: {num_invoices}개\n"
-        "3. 인보이스 구분 기준:\n"
-        "   - 각 인보이스는 일반적으로 새로운 페이지에서 시작됩니다.\n"
-        "   - 인보이스 번호, 날짜, 거래처 정보 등이 새로 시작되는 것이 새로운 인보이스의 시작점입니다.\n"
-        "   - 동일한 인보이스의 연속 페이지는 일반적으로 페이지 번호나 연속성을 나타내는 표시가 있습니다.\n"
-        "\n"
-        f"제공된 텍스트를 분석하여 정확히 {num_invoices}개의 인보이스로 분할해주세요.\n"
-        f"주의: 페이지 번호는 1부터 시작하며, 1부터 {total_pages} 사이의 값이어야 합니다."
-    )
+    if not metadata:
+        return ""
+
+    formatted_lines = []
+    for key, value in metadata.items():
+        if isinstance(value, list):
+            formatted_lines.append(f"{key}:")
+            for item in value:
+                formatted_lines.append(f"  - {item}")
+        elif isinstance(value, dict):
+            formatted_lines.append(f"{key}:")
+            sub_items = _format_metadata(value).split("\n")
+            formatted_lines.extend(f"  {item}" for item in sub_items if item)
+        else:
+            formatted_lines.append(f"{key}: {value}")
+
+    return "\n".join(formatted_lines)
 
 
-def get_invoice_processor_prompt() -> str:
-    """인보이스 데이터 추출을 위한 프롬프트 생성
+def get_pdf_analysis_prompt(
+    total_pages: int, num_pages: int, metadata: Optional[Dict] = None
+) -> str:
+    """Generate a prompt for PDF analysis
+
+    Args:
+        total_pages: Total number of pages
+        num_pages: Expected number of invoices
+        metadata: Optional metadata related to the PDF file
 
     Returns:
-        프롬프트 문자열
+        A prompt string
     """
-    return (
-        "당신은 인보이스 데이터를 추출하는 전문가입니다. "
-        "다음 규칙을 바탕으로 인보이스에서 필요한 정보를 추출해주세요:\n"
-        "\n"
-        "1. 데이터 추출 규칙:\n"
-        "   - 대부분의 값들은 제목이나 라벨이 있습니다 (예: '인보이스 번호:', '발행일:', '금액:' 등)\n"
-        "   - 고객명은 일반적으로 첫 페이지 좌측에 위치하며, 경칭(님, 귀하 등)이 포함될 수 있습니다\n"
-        "   - 금액은 숫자만 추출하고 쉼표나 통화 기호는 제외합니다\n"
-        "   - 날짜는 YYYY-MM-DD 형식으로 변환합니다\n"
-        "\n"
-        "2. 누락된 값 처리:\n"
-        "   - 모든 필드가 반드시 값을 가지고 있지는 않습니다\n"
-        '   - 값을 찾을 수 없는 경우 빈 문자열("")로 설정합니다\n'
-        "   - 추측하거나 임의의 값을 넣지 마세요\n"
-        "\n"
-        "3. 데이터 정확성:\n"
-        "   - 제공된 스키마의 형식을 정확히 따라주세요\n"
-        "   - 추출한 값이 확실하지 않은 경우 빈 값으로 남겨두세요\n"
-        "   - 동일한 정보가 여러 번 나타나는 경우, 가장 명확한 값을 선택하세요"
-    )
+    base_prompt = f"""
+You are an expert in identifying invoices and determining page ranges in PDF documents.
+Based on the following information, please determine the page ranges for each invoice:
+
+1. Total number of pages: {total_pages}
+2. Number of invoices included: {num_pages}
+3. Criteria for distinguishing invoices:
+   - Each invoice typically starts on a new page.
+   - New invoice starts are indicated by invoice numbers, dates, and customer information.
+   - Consecutive pages of the same invoice usually have page numbers or continuity indicators.
+   - DO NOT translate or modify any text content - analyze it as is.
+"""
+
+    if metadata:
+        metadata_str = _format_metadata(metadata)
+        base_prompt += f"""
+4. Additional Information:
+{metadata_str}
+
+Use the above additional information to perform more accurate page splitting.
+If customer_names are provided, match them with the customer information of each invoice.
+Remember to match the exact text as it appears in the document, without translation.
+"""
+
+    base_prompt += f"""
+Analyze the provided text and split it into exactly {num_pages} invoices.
+Note: Page numbers start from 1 and should be between 1 and {total_pages}.
+Important: Do not translate or modify any text content during analysis.
+"""
+
+    return base_prompt
+
+
+def get_invoice_processor_prompt(
+    analysis_reason: Optional[str] = None, metadata: Optional[Dict] = None
+) -> str:
+    """Generate a prompt for invoice data extraction
+
+    Args:
+        analysis_reason: Optional reason provided by the PDF analyzer for determining page ranges
+        metadata: Optional metadata related to the PDF file
+
+    Returns:
+        A prompt string
+    """
+    base_prompt = """
+You are an expert in extracting invoice data. Please follow these detailed steps to ensure accurate extraction:
+
+1. Data Integrity Principles:
+   - Extract only explicitly displayed data
+   - Do not omit or add data arbitrarily
+   - No assumptions or guesses
+   - Prefer displayed values over calculated ones
+   - Extract all amounts as numbers without commas/currency symbols
+   - IMPORTANT: Keep all text in its original language - DO NOT translate
+
+2. Item List Processing and Validation:
+   - Mandatory Item Data Requirements:
+     * Each valid item must have at least 2 of the following:
+       - Item name (can be empty string, but must be in original language)
+       - Unit price
+       - Quantity
+       - Total amount
+     * If only one field is present, treat as invalid data
+   - Data Quality Checks:
+     * Verify data consistency within the same row/column
+     * Rows with only item names or only numbers are likely incorrect
+     * Check if numbers in the same column have similar formats
+   - Exclusion criteria:
+     * Rows with only notes/descriptions
+     * Category/section text rows
+     * Subtotal/total/intermediate total rows
+     * Additional explanations or annotation rows
+   - Item Name Processing:
+     * Include additional explanations for items in item_name
+     * Keep all text in its original language
+     * Exclude independent note/description rows
+   - Item Data Validation:
+     * Exclude if item_name is present but quantity/unit_price is missing
+     * Exclude if quantity and unit_price are present but it's clearly a subtotal/total row
+     * Exclude if in doubt (adhere to data integrity principles)
+
+3. Amount Extraction and Verification:
+   - Initial Amount Extraction:
+     * Extract amounts from clearly labeled sections
+     * Record the location and context of each amount
+     * Keep labels in their original language
+   - Multi-step Verification Process:
+     * Step 1: Compare extracted amounts with calculated totals
+     * Step 2: If discrepancy found:
+       - Re-verify each extracted amount
+       - Check for possible misclassification (e.g., tax as subtotal)
+       - Verify item list completeness
+     * Step 3: If discrepancy persists:
+       - Compare amounts across different pages
+       - Check for additional charges or discounts
+       - Look for explanatory notes
+     * Step 4: Final Verification:
+       - Verify: Total = Subtotal + Taxes
+       - Verify: Subtotal = Sum of item amounts
+       - Document any remaining discrepancies
+   - Amount Location Priority:
+     * First page header area: Primary source
+     * Last page footer area: Secondary source
+     * Item list calculations: Verification only
+   - Handling Discrepancies:
+     * If amounts don't match: Prioritize explicitly stated amounts
+     * Document the source of each amount
+     * Flag significant discrepancies for review
+
+4. Handling Empty Values:
+   - Strings: Empty string ""
+   - Numbers: null
+   - Dates: Empty string ""
+   - Arrays: Empty array []
+   - Objects: Empty object {}
+
+5. Data Validation:
+   - Check for the presence of required fields
+   - Verify the accuracy of amount calculations
+   - Validate date formats (YYYY-MM-DD)
+   - Handle fields with empty values if validation fails
+   - Keep all text in its original language
+
+6. Error Handling:
+   - Extract only verifiable parts in case of format inconsistency
+   - Extract only confirmed parts in case of incomplete data
+   - Handle ambiguous data as empty values
+   - Do not attempt to translate or modify text content
+
+7. Extraction Quality Assurance:
+   - Primary Verification:
+     * Verify all required fields are present
+     * Check numerical consistency
+     * Validate date formats
+     * Ensure text remains in original language
+   - Secondary Verification:
+     * Cross-reference amounts across pages
+     * Verify item list completeness
+     * Check for missing or duplicate items
+   - Final Verification:
+     * Perform amount reconciliation
+     * Document any discrepancies
+     * Flag items requiring manual review
+
+8. Re-verification Process:
+   - Trigger Conditions:
+     * Amount discrepancies detected
+     * Missing required fields
+     * Inconsistent item data
+   - Re-verification Steps:
+     * Re-extract all amounts independently
+     * Re-validate item list completeness
+     * Cross-check against original document
+     * Document changes and reasons
+   - Final Decision:
+     * Accept data only if verification passes
+     * Flag for manual review if issues persist
+     * Document verification results
+
+9. Language and Text Handling:
+   - Maintain original language:
+     * Do not translate any text content
+     * Keep company names, addresses, and descriptions in their original form
+     * Preserve original formatting of dates and numbers
+   - Character encoding:
+     * Preserve special characters and symbols
+     * Maintain original text encoding
+     * Handle multi-byte characters correctly
+"""
+
+    if metadata:
+        metadata_str = _format_metadata(metadata)
+        base_prompt += f"""
+
+Additional Information:
+{metadata_str}
+
+Use this information for more accurate extraction.
+Match customer_names with invoice data if provided, maintaining original text.
+"""
+
+    if analysis_reason:
+        base_prompt += f"""
+
+Analysis Reason:
+{analysis_reason}
+
+Use this analysis to prioritize amount information locations.
+Remember to keep all extracted text in its original language.
+"""
+
+    return base_prompt

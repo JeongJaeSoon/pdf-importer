@@ -13,14 +13,11 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from pdf_processor import PDFProcessor, PDFProcessType
+from pdf_processor.utils.constants import PACKAGE_BANNER
 
-# .env 파일 로드
 load_dotenv()
-
-# Rich 콘솔 초기화
 console = Console()
 
-# 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format="%(message)s",
@@ -31,7 +28,6 @@ logging.basicConfig(
     ],
 )
 
-# httpx 로거 설정
 httpx_logger = logging.getLogger("httpx")
 httpx_logger.setLevel(logging.WARNING)
 
@@ -41,40 +37,38 @@ logger = logging.getLogger(__name__)
 async def process_single_pdf(
     processor: PDFProcessor, pdf_path: Path, task_id: str
 ) -> Optional[Dict]:
-    """단일 PDF 파일 처리
+    """Process single PDF file
 
     Args:
-        processor: PDF 처리기
-        pdf_path: PDF 파일 경로
-        task_id: 작업 ID
+        processor: PDF processor
+        pdf_path: PDF file path
+        task_id: Task ID
 
     Returns:
-        처리 결과 또는 None (실패 시)
+        Processing result or None (if failed)
     """
     with Progress(
         SpinnerColumn(),
         TextColumn("{task.description}", justify="left"),
         console=console,
-        transient=False,  # 진행 상태를 화면에 유지
-        expand=False,  # 전체 너비 사용 안 함
+        transient=False,
+        expand=False,
     ) as progress:
-        task = progress.add_task(f"[cyan]{pdf_path.name} - 처리 중...[/]", total=None)
+        task = progress.add_task(f"[cyan]{pdf_path.name} - Processing...[/]", total=None)
         status = None
         prev_status = None
 
         while True:
             status = await processor.get_task_status(task_id)
 
-            # 상태가 변경된 경우에만 업데이트
             if status != prev_status:
-                # 이전 상태 출력을 완료하고 새 줄 추가
                 if prev_status:
                     progress.print()
                     console.print()
 
                 progress.update(
                     task,
-                    description=f"[bold blue]{pdf_path.name} - 현재 상태:[/] [yellow]{status}[/]",
+                    description=f"[bold blue]{pdf_path.name} - Current Status:[/] [yellow]{status}[/]",
                 )
                 prev_status = status
 
@@ -82,19 +76,21 @@ async def process_single_pdf(
                 progress.print()
                 console.print()
                 result = await processor.get_task_result(task_id)
-                console.print(f"[bold green]{pdf_path.name} - 처리 결과:[/]")
+                console.print(f"[bold green]{pdf_path.name} - Processing Result:[/]")
                 result_json = json.dumps(result, ensure_ascii=False, indent=2)
-                console.print(Panel(JSON(result_json), title="추출된 데이터", border_style="green"))
+                console.print(
+                    Panel(JSON(result_json), title="Extracted Data", border_style="green")
+                )
                 return result
 
             elif status == "failed":
                 progress.print()
                 console.print()
                 error_info = await processor.get_task_result(task_id)
-                console.print(f"[bold red]{pdf_path.name} - 작업 실패[/]")
+                console.print(f"[bold red]{pdf_path.name} - Processing failed[/]")
                 if error_info:
                     console.print(
-                        f"[red]에러 메시지:[/] {error_info.get('error', '알 수 없는 오류')}"
+                        f"[red]Error message:[/] {error_info.get('error', 'Unknown error')}"
                     )
                 return None
 
@@ -102,41 +98,76 @@ async def process_single_pdf(
 
 
 async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[Dict]:
-    """여러 PDF 파일 처리
+    """Process multiple PDF files
 
     Args:
-        processor: PDF 처리기
-        pdf_files: PDF 파일 경로 리스트
+        processor: PDF processor
+        pdf_files: List of PDF file paths
 
     Returns:
-        처리 결과 리스트
+        List of processing results
     """
-    # 파일별 인보이스 수 매핑
-    invoice_counts = {
-        "sample_invoice_1.pdf": 1,
-        "sample_invoice_2.pdf": 2,
-        "sample_invoice_3.pdf": 3,
-        "sample_invoice_4.pdf": 4,
+    # PDF file information mapping (num_pages is required, metadata is optional)
+    pdf_info = {
+        "sample_invoice_1.pdf": {
+            "num_pages": 1,
+            "metadata": {
+                "customer_names": ["Uguisu Transportation"],
+            },
+        },
+        "sample_invoice_2.pdf": {
+            "num_pages": 2,
+            "metadata": {
+                "customer_names": [
+                    "Ordinary Corporation",
+                    "Very Very Very Very Very Very Very Very Very Very Very Very Very Very Very Very Long Corporation Branch Office",
+                ],
+            },
+        },
+        "sample_invoice_3.pdf": {
+            "num_pages": 3,
+            "metadata": {
+                "customer_names": [
+                    "AAA",
+                    "[demo]Freee Construction LLC",
+                    "[demo]Freee Planning Corp",
+                ],
+            },
+        },
+        "sample_invoice_4.pdf": {
+            "num_pages": 4,
+            "metadata": {
+                "customer_names": [
+                    "AAA",
+                    "[demo]Freee Construction LLC",
+                    "[demo]Freee Planning Corp",
+                    "[demo]Freee Development Corp",
+                ],
+            },
+        },
     }
 
-    # 작업 제출
+    # Submit tasks
     tasks = []
     for pdf_path in pdf_files:
-        # 파일명에 따른 인보이스 수 결정
-        num_invoices = invoice_counts.get(pdf_path.name, 1)
+        file_info = pdf_info.get(pdf_path.name, {"num_pages": 1})
+        num_invoices = file_info["num_pages"]
+        metadata = file_info.get("metadata", {})
+
         task_id = await processor.process_pdf(
             pdf_path=str(pdf_path),
             process_type=PDFProcessType.INVOICE.value,
-            num_pages=num_invoices,  # 파일별 인보이스 수 지정
+            num_pages=num_invoices,
+            metadata=metadata,
             async_processing=True,
         )
         tasks.append((task_id, pdf_path))
         console.print(
-            f"\n[bold green]작업이 제출되었습니다.[/] 파일: [yellow]{pdf_path.name}[/], "
-            f"작업 ID: [yellow]{task_id}[/], 예상 인보이스 수: [yellow]{num_invoices}[/]"
+            f"\n[bold green]Task submitted successfully.[/] File: [yellow]{pdf_path.name}[/], "
+            f"Task ID: [yellow]{task_id}[/], Estimated number of invoices: [yellow]{num_invoices}[/]"
         )
 
-    # 모든 작업 완료 대기
+    # Wait for all tasks to complete
     results = []
     for task_id, pdf_path in tasks:
         result = await process_single_pdf(processor, pdf_path, task_id)
@@ -148,35 +179,35 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
 
 
 async def main():
-    """비동기 처리 예제"""
-    # 환경 변수 확인
+    """Asynchronous processing example"""
+    console.print(PACKAGE_BANNER, style="bold blue")
+
     redis_url = os.getenv("REDIS_URL")
     openai_api_key = os.getenv("OPENAI_API_KEY")
     redis_encryption_key = os.getenv("REDIS_ENCRYPTION_KEY")
-    max_concurrent = int(os.getenv("MAX_CONCURRENT", "2"))  # 최대 동시 실행 수 (기본값: 2)
-    model_name = os.getenv("MODEL_NAME", "gpt-4")  # 사용할 모델 이름 (기본값: gpt-4)
+    max_concurrent = int(os.getenv("MAX_CONCURRENT", "2"))
+    model_name = os.getenv("MODEL_NAME", "gpt-4")
 
     if not redis_url or not openai_api_key or not redis_encryption_key:
-        raise ValueError("REDIS_URL, OPENAI_API_KEY, REDIS_ENCRYPTION_KEY 환경 변수가 필요합니다.")
+        raise ValueError(
+            "REDIS_URL, OPENAI_API_KEY, REDIS_ENCRYPTION_KEY environment variables are required."
+        )
 
-    # PDF 파일 경로들
     samples_dir = Path(__file__).parent.parent / "samples" / "text"
     pdf_files = sorted(samples_dir.glob("sample_invoice_*.pdf"))
 
     if not pdf_files:
-        raise FileNotFoundError(f"PDF 파일을 찾을 수 없습니다: {samples_dir}")
+        raise FileNotFoundError(f"PDF files not found: {samples_dir}")
 
-    # 작업 정보 표시
     info_text = [
-        "[bold cyan]PDF 처리 시작 (비동기 처리)[/]",
-        f"처리할 파일: [yellow]{', '.join(f.name for f in pdf_files)}[/]",
-        f"처리 타입: [blue]{PDFProcessType.INVOICE.value}[/]",
-        f"최대 동시 실행 수: [blue]{max_concurrent}[/]",
-        f"사용 모델: [blue]{model_name}[/]",
+        "[bold cyan]PDF Processing Started (Asynchronous Processing)[/]",
+        f"Files to process: [yellow]{', '.join(f.name for f in pdf_files)}[/]",
+        f"Processing type: [blue]{PDFProcessType.INVOICE.value}[/]",
+        f"Maximum number of concurrent executions: [blue]{max_concurrent}[/]",
+        f"Using model: [blue]{model_name}[/]",
     ]
-    console.print(Panel("\n".join(info_text), title="작업 정보", border_style="blue"))
+    console.print(Panel("\n".join(info_text), title="Task Information", border_style="blue"))
 
-    # PDF 처리기 초기화 (LLM 프로세서도 함께 초기화됨)
     processor = PDFProcessor(
         redis_url=redis_url,
         openai_api_key=openai_api_key,
@@ -187,19 +218,15 @@ async def main():
 
     worker_task = None
     try:
-        # 작업자 시작
         worker_task = asyncio.create_task(processor.start_worker())
-
-        # PDF 파일들 처리
         await process_pdfs(processor, pdf_files)
 
     except Exception as e:
-        console.print(f"\n[bold red]에러 발생:[/] {str(e)}")
+        console.print(f"\n[bold red]Error occurred:[/] {str(e)}")
         logger.error(f"Error processing PDFs: {e}")
         raise
 
     finally:
-        # 작업자 중지
         if worker_task:
             await processor.stop_worker()
             await worker_task

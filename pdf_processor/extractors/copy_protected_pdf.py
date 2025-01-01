@@ -6,7 +6,7 @@ from pdf_processor.extractors.base import BaseExtractor
 
 
 class CopyProtectedPDFExtractor(BaseExtractor):
-    """복사 방지 기능이 설정된 PDF에서 데이터를 추출하는 클래스"""
+    """Class for extracting data from copy-protected PDFs"""
 
     def extract_text(self) -> str:
         try:
@@ -14,9 +14,8 @@ class CopyProtectedPDFExtractor(BaseExtractor):
             text = ""
 
             for page in doc:
-                # 복사 방지 설정을 우회하여 텍스트 추출
-                # PyMuPDF는 PDF의 실제 콘텐츠에서 직접 텍스트를 추출하므로
-                # 복사 방지 설정을 우회할 수 있음
+                # Bypass copy protection to extract text
+                # PyMuPDF extracts text directly from PDF content
                 text += page.get_text(sort=True) + "\n"
 
             doc.close()

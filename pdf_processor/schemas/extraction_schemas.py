@@ -1,73 +1,196 @@
-from typing import Dict, List, TypedDict
+from typing import Any, Dict
 
-
-class InvoiceItemDict(TypedDict):
-    """인보이스 항목 정보"""
-
-    item_name: str  # 품목명
-    quantity: int  # 수량
-    unit_price: float  # 단가
-    amount: float  # 금액
-
-
-class InvoiceTaxDict(TypedDict):
-    """인보이스 세금 정보"""
-
-    tax_type: str  # 세금 유형 (예: VAT, 소득세 등)
-    tax_rate: float  # 세율
-    tax_amount: float  # 세액
-
-
-class InvoiceDict(TypedDict):
-    """인보이스 전체 정보"""
-
-    invoice_number: str  # 인보이스 번호
-    issue_date: str  # 발행일
-    due_date: str  # 지급기한
-    customer_name: str  # 고객명
-    items: List[InvoiceItemDict]  # 품목 리스트
-    subtotal: float  # 공급가액
-    taxes: List[InvoiceTaxDict]  # 세금 정보
-    total_amount: float  # 총액
-
-
-# 인보이스 추출 스키마
-INVOICE_SCHEMA: Dict = {
+PDF_ANALYZER_SCHEMA: Dict[str, Any] = {
     "type": "object",
     "properties": {
-        "invoice_number": {"type": "string", "description": "인보이스 번호"},
-        "issue_date": {"type": "string", "description": "발행일 (YYYY-MM-DD 형식)"},
-        "due_date": {"type": "string", "description": "지급기한 (YYYY-MM-DD 형식)"},
-        "customer_name": {"type": "string", "description": "고객명"},
-        "items": {
+        "page_ranges": {
             "type": "array",
-            "description": "품목 리스트",
+            "description": "List of page ranges for each invoice document",
             "items": {
                 "type": "object",
                 "properties": {
-                    "item_name": {"type": "string", "description": "품목명"},
-                    "quantity": {"type": "integer", "description": "수량"},
-                    "unit_price": {"type": "number", "description": "단가"},
-                    "amount": {"type": "number", "description": "금액"},
+                    "start_page": {
+                        "type": "integer",
+                        "description": "Start page number (1-based index)",
+                        "minimum": 1,
+                    },
+                    "end_page": {
+                        "type": "integer",
+                        "description": "End page number (1-based index)",
+                        "minimum": 1,
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Reason for determining this page range as a single invoice",
+                    },
+                },
+                "required": ["start_page", "end_page", "reason"],
+            },
+        }
+    },
+    "required": ["page_ranges"],
+}
+
+INVOICE_SCHEMA: Dict[str, Any] = {
+    "type": "object",
+    "properties": {
+        "invoice_number": {
+            "type": "string",
+            "description": (
+                "Invoice number - Required field\n"
+                "- Location: Top right of the first page\n"
+                "- Label: 'Invoice No:', 'Invoice Number:', etc.\n"
+                "- Validation: Combination of letters, numbers, and special characters"
+            ),
+        },
+        "issue_date": {
+            "type": "string",
+            "description": (
+                "Issue date - Required field\n"
+                "- Location: Top of the first page\n"
+                "- Label: 'Issue Date:', 'Date of Issue:', etc.\n"
+                "- Format: YYYY-MM-DD"
+            ),
+        },
+        "due_date": {
+            "type": "string",
+            "description": (
+                "Due date - Required field\n"
+                "- Location: Near the issue date\n"
+                "- Label: 'Due Date:', 'Payment Due:', etc.\n"
+                "- Format: YYYY-MM-DD"
+            ),
+        },
+        "customer_name": {
+            "type": "string",
+            "description": (
+                "Customer name - Required field\n"
+                "- Location: Top left of the first page\n"
+                "- Format: Company/Branch name (without honorifics)"
+            ),
+        },
+        "items": {
+            "type": "array",
+            "description": (
+                "List of items - Required field\n"
+                "- Structure: Tabular item information\n"
+                "- Inclusion criteria:\n"
+                "  * Must have item_name\n"
+                "  * Must have quantity\n"
+                "  * Must have unit_price\n"
+                "  * Must have amount\n"
+                "- Exclusion criteria:\n"
+                "  * Category/section text\n"
+                "  * Rows with only notes/descriptions (no quantity/unit_price/amount)\n"
+                "  * Subtotal/total rows\n"
+                "  * Rows missing any of quantity/unit_price/amount\n"
+                "- Note/description handling:\n"
+                "  * Additional descriptions for items are included in item_name\n"
+                "  * Independent note/description rows are excluded"
+            ),
+            "items": {
+                "type": "object",
+                "properties": {
+                    "item_name": {
+                        "type": "string",
+                        "description": (
+                            "Item name (can be an empty string)\n"
+                            "- Name of the product/service\n"
+                            "- May include related notes or descriptions\n"
+                            "- Excludes category/section text"
+                        ),
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "description": (
+                            "Quantity\n"
+                            "- Integer value\n"
+                            "- Can be positive or negative (negative for returns, etc.)"
+                        ),
+                    },
+                    "unit_price": {
+                        "type": "number",
+                        "description": (
+                            "Unit price\n"
+                            "- Number without commas/currency symbols\n"
+                            "- Can be positive or negative (negative for discounts, etc.)"
+                        ),
+                    },
+                    "amount": {
+                        "type": "number",
+                        "description": (
+                            "Amount\n"
+                            "- Should match quantity * unit_price\n"
+                            "- Can be positive or negative"
+                        ),
+                    },
                 },
                 "required": ["item_name", "quantity", "unit_price", "amount"],
             },
         },
-        "subtotal": {"type": "number", "description": "공급가액"},
+        "subtotal": {
+            "type": "number",
+            "description": (
+                "Subtotal - Required field\n"
+                "- Location and validation:\n"
+                "  * Compare the amount at the top of the first page with the total amount on the last page\n"
+                "  * Use the value if they are similar or match\n"
+                "  * If there is a difference, prioritize the first page amount\n"
+                "- Label: 'Subtotal:', 'Total before tax:', etc.\n"
+                "- Can be negative (if the entire invoice is a return/discount)"
+            ),
+        },
         "taxes": {
             "type": "array",
-            "description": "세금 정보",
+            "description": (
+                "Tax information - Required field\n"
+                "- Location and validation:\n"
+                "  * Compare the tax amount at the top of the first page with the total tax amount on the last page\n"
+                "  * Use the value if they are similar or match\n"
+                "  * If there is a difference, prioritize the first page amount\n"
+                "- Structure: Information by tax type\n"
+                "- Can be negative (if the subtotal is negative)"
+            ),
             "items": {
                 "type": "object",
                 "properties": {
-                    "tax_type": {"type": "string", "description": "세금 유형 (예: VAT, 소득세 등)"},
-                    "tax_rate": {"type": "number", "description": "세율 (%)"},
-                    "tax_amount": {"type": "number", "description": "세액"},
+                    "tax_type": {
+                        "type": "string",
+                        "description": "Type of tax (e.g., 'VAT', 'Sales Tax', etc.)",
+                    },
+                    "tax_rate": {
+                        "type": "number",
+                        "description": (
+                            "Tax rate\n"
+                            "- Number without % symbol\n"
+                            "- Between 0 and 100 inclusive"
+                        ),
+                    },
+                    "tax_amount": {
+                        "type": "number",
+                        "description": (
+                            "Tax amount\n"
+                            "- Number without commas/currency symbols\n"
+                            "- Compare with the tax amount on the first and last pages for validation\n"
+                            "- Can be positive or negative"
+                        ),
+                    },
                 },
                 "required": ["tax_type", "tax_rate", "tax_amount"],
             },
         },
-        "total_amount": {"type": "number", "description": "총액"},
+        "total_amount": {
+            "type": "number",
+            "description": (
+                "Total amount - Required field\n"
+                "- Location and validation:\n"
+                "  * Compare the amount at the top of the first page with the total amount on the last page\n"
+                "  * Use the value if they are similar or match\n"
+                "  * If there is a difference, prioritize the first page amount\n"
+                "- Label: 'Total:', 'Grand Total:', etc.\n"
+                "- Can be negative (if the entire invoice is a return/discount)"
+            ),
+        },
     },
     "required": [
         "invoice_number",
