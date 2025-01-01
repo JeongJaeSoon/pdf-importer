@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import fitz
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class PDFAnalyzer(BaseProcessor):
     """PDF 파일 분석 및 분할을 위한 클래스"""
 
-    async def execute(self, pdf_path: str, num_pages: int) -> List[Tuple[int, int]]:
+    async def execute(self, pdf_path: str, num_pages: int) -> List[Tuple[int, int, Optional[str]]]:
         """PDF 파일을 분석하여 페이지 범위 결정
 
         Args:
@@ -20,7 +20,8 @@ class PDFAnalyzer(BaseProcessor):
             num_pages: 예상되는 인보이스 문서 수
 
         Returns:
-            페이지 범위 리스트 [(시작, 끝), ...] (0-based index)
+            페이지 범위와 분석 근거 리스트 [(시작, 끝, 근거), ...] (0-based index)
+            기본 분할의 경우 근거는 None
         """
         try:
             # PDF 파일 열기
@@ -92,7 +93,7 @@ class PDFAnalyzer(BaseProcessor):
                     if start_page >= total_pages:
                         break
                     end_page = min((i + 1) * pages_per_doc - 1, total_pages - 1)
-                    page_ranges.append((start_page, end_page))
+                    page_ranges.append((start_page, end_page, None))  # 기본 분할은 근거 없음
                     logger.info(f"기본 분할 - 인보이스 {i+1}: 페이지 {start_page+1}-{end_page+1}")
             else:
                 # LLM 분석 결과 사용 (1-based를 0-based로 변환)
@@ -100,12 +101,12 @@ class PDFAnalyzer(BaseProcessor):
                     # 1-based를 0-based로 변환하고 범위 검증
                     start_page = max(0, min(total_pages - 1, range_info["start_page"] - 1))
                     end_page = max(0, min(total_pages - 1, range_info["end_page"] - 1))
+                    reason = range_info.get("reason", "정보 없음")
 
                     if start_page <= end_page:
-                        page_ranges.append((start_page, end_page))
+                        page_ranges.append((start_page, end_page, reason))
                         logger.info(
-                            f"인보이스 페이지 범위: {start_page+1}-{end_page+1}\n"
-                            f"근거: {range_info.get('reason', '정보 없음')}"
+                            f"인보이스 페이지 범위: {start_page+1}-{end_page+1}\n" f"근거: {reason}"
                         )
 
                 # 결과 검증
@@ -122,12 +123,12 @@ class PDFAnalyzer(BaseProcessor):
                         if start_page >= total_pages:
                             break
                         end_page = min((i + 1) * pages_per_doc - 1, total_pages - 1)
-                        page_ranges.append((start_page, end_page))
+                        page_ranges.append((start_page, end_page, None))  # 기본 분할은 근거 없음
                         logger.info(
                             f"기본 분할 - 인보이스 {i+1}: 페이지 {start_page+1}-{end_page+1}"
                         )
 
-            logger.info(f"PDF 분석 완료 - 페이지 범위: {[(s+1, e+1) for s, e in page_ranges]}")
+            logger.info(f"PDF 분석 완료 - 페이지 범위: {[(s+1, e+1) for s, e, _ in page_ranges]}")
             return page_ranges
 
         except Exception as e:

@@ -70,7 +70,7 @@ class Worker:
 
             # PDF 분석기 초기화
             analyzer = PDFAnalyzer()
-            page_ranges = await analyzer.execute(pdf_path, num_pages)
+            page_ranges_with_reasons = await analyzer.execute(pdf_path, num_pages)
 
             # 처리 타입에 맞는 프로세서 초기화
             processor_class = self._get_processor_class(process_type)
@@ -78,14 +78,22 @@ class Worker:
 
             # 각 페이지 범위별로 처리
             results = []
-            for page_range in page_ranges:
+            for start_page, end_page, reason in page_ranges_with_reasons:
                 try:
-                    result = await processor.execute(pdf_path, page_range)
+                    # 기존 execute 메서드 호출 시 분석 근거도 함께 전달
+                    result = await processor.execute(
+                        pdf_path=pdf_path, page_range=(start_page, end_page), analysis_reason=reason
+                    )
                     results.append(result)
                 except Exception as e:
-                    logger.error(f"페이지 범위 {page_range} 처리 중 오류 발생: {e}")
+                    logger.error(f"페이지 범위 {(start_page+1, end_page+1)} 처리 중 오류 발생: {e}")
                     # 개별 페이지 범위 처리 실패는 기록하고 계속 진행
-                    results.append({"error": f"처리 실패: {str(e)}", "page_range": page_range})
+                    results.append(
+                        {
+                            "error": f"처리 실패: {str(e)}",
+                            "page_range": (start_page + 1, end_page + 1),
+                        }
+                    )
 
             # 결과 저장
             await self.queue.store_result(task_id, results)
