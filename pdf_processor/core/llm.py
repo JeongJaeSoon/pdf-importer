@@ -23,7 +23,6 @@ class LLM:
         return cls._instance
 
     def __init__(self, api_key: Optional[str] = None):
-        # Skip initialization as it's already handled in __new__
         pass
 
     @classmethod
@@ -76,29 +75,23 @@ class LLM:
             Dictionary containing extracted data
         """
         try:
-            # Open PDF file
             pdf_document = fitz.open(pdf_path)
             text = ""
 
-            # Extract text from specified page range
             for page_num in range(page_range[0], page_range[1] + 1):
                 if 0 <= page_num < len(pdf_document):
                     page = pdf_document[page_num]
                     text += page.get_text()
 
-            # Set up function calling
             function_schema = self._create_function_schema(schema)
 
-            # Default system message
             default_system_message = (
                 "You are a helpful assistant that extracts structured "
                 "data from PDF documents. Always extract data according "
                 "to the provided schema."
             )
 
-            # Limit concurrent executions using semaphore
             async with self._semaphore:
-                # Extract data using LLM
                 response = await self._client.chat.completions.create(
                     model=self._model_name,
                     messages=[
@@ -113,7 +106,6 @@ class LLM:
                     temperature=0.0,
                 )
 
-            # Parse response
             try:
                 function_call = response.choices[0].message.function_call
                 result = json.loads(function_call.arguments)

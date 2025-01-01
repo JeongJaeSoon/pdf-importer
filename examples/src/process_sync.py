@@ -12,14 +12,11 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from pdf_processor import PDFProcessor, PDFProcessType
+from pdf_processor.utils.constants import PACKAGE_BANNER
 
-# Load .env file
 load_dotenv()
-
-# Initialize Rich console
 console = Console()
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
@@ -41,7 +38,6 @@ async def process_single_pdf(processor: PDFProcessor, pdf_path: Path) -> Dict:
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        # Create task for progress display
         task1 = progress.add_task(
             f"[cyan]{pdf_path.name} - Step 1: Analyzing PDF...[/]", total=None
         )
@@ -50,14 +46,12 @@ async def process_single_pdf(processor: PDFProcessor, pdf_path: Path) -> Dict:
         )
 
         try:
-            # Execute PDF processing
             results = await processor.process_pdf(
                 pdf_path=str(pdf_path),
                 process_type=PDFProcessType.INVOICE.value,
                 num_pages=1,  # Process each file as a single invoice
             )
 
-            # Update progress status
             progress.update(
                 task1,
                 description=f"[green]{pdf_path.name} - Step 1: PDF Analysis Complete[/]",
@@ -69,7 +63,6 @@ async def process_single_pdf(processor: PDFProcessor, pdf_path: Path) -> Dict:
                 completed=True,
             )
 
-            # Output results
             console.print(f"\n[bold green]{pdf_path.name} - Processing Result:[/]")
             result_json = json.dumps(results, ensure_ascii=False, indent=2)
             console.print(Panel(JSON(result_json), title="Extracted Data", border_style="green"))
@@ -105,20 +98,19 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
 
 async def main():
     """Example of synchronous processing"""
-    # Check environment variables
+    console.print(PACKAGE_BANNER, style="bold blue")
+
     openai_api_key = os.getenv("OPENAI_API_KEY")
 
     if not openai_api_key:
         raise ValueError("OPENAI_API_KEY environment variable is required.")
 
-    # PDF file paths
     samples_dir = Path(__file__).parent.parent / "samples" / "text"
     pdf_files = sorted(samples_dir.glob("sample_invoice_*.pdf"))
 
     if not pdf_files:
         raise FileNotFoundError(f"PDF files not found: {samples_dir}")
 
-    # Display job information
     info_text = [
         "[bold cyan]Starting PDF Processing (Synchronous)[/]",
         f"Files to process: [yellow]{', '.join(f.name for f in pdf_files)}[/]",
@@ -127,10 +119,7 @@ async def main():
     console.print(Panel("\n".join(info_text), title="Job Information", border_style="blue"))
 
     try:
-        # Initialize PDF processor
         processor = PDFProcessor(openai_api_key=openai_api_key)
-
-        # Process PDF files
         await process_pdfs(processor, pdf_files)
 
     except Exception as e:

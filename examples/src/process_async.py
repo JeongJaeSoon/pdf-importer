@@ -13,14 +13,11 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from pdf_processor import PDFProcessor, PDFProcessType
+from pdf_processor.utils.constants import PACKAGE_BANNER
 
-# Load .env file
 load_dotenv()
-
-# Initialize Rich console
 console = Console()
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(message)s",
@@ -31,7 +28,6 @@ logging.basicConfig(
     ],
 )
 
-# Configure httpx logger
 httpx_logger = logging.getLogger("httpx")
 httpx_logger.setLevel(logging.WARNING)
 
@@ -55,8 +51,8 @@ async def process_single_pdf(
         SpinnerColumn(),
         TextColumn("{task.description}", justify="left"),
         console=console,
-        transient=False,  # Keep progress status on screen
-        expand=False,  # Don't use full width
+        transient=False,
+        expand=False,
     ) as progress:
         task = progress.add_task(f"[cyan]{pdf_path.name} - Processing...[/]", total=None)
         status = None
@@ -65,9 +61,7 @@ async def process_single_pdf(
         while True:
             status = await processor.get_task_status(task_id)
 
-            # Update only when status changes
             if status != prev_status:
-                # Complete previous status output and add new line
                 if prev_status:
                     progress.print()
                     console.print()
@@ -156,7 +150,6 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
     # Submit tasks
     tasks = []
     for pdf_path in pdf_files:
-        # Get information based on file name
         file_info = pdf_info.get(pdf_path.name, {"num_pages": 1})
         num_invoices = file_info["num_pages"]
         metadata = file_info.get("metadata", {})
@@ -165,7 +158,7 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
             pdf_path=str(pdf_path),
             process_type=PDFProcessType.INVOICE.value,
             num_pages=num_invoices,
-            metadata=metadata,  # Pass metadata
+            metadata=metadata,
             async_processing=True,
         )
         tasks.append((task_id, pdf_path))
@@ -187,28 +180,25 @@ async def process_pdfs(processor: PDFProcessor, pdf_files: List[Path]) -> List[D
 
 async def main():
     """Asynchronous processing example"""
-    # Check environment variables
+    console.print(PACKAGE_BANNER, style="bold blue")
+
     redis_url = os.getenv("REDIS_URL")
     openai_api_key = os.getenv("OPENAI_API_KEY")
     redis_encryption_key = os.getenv("REDIS_ENCRYPTION_KEY")
-    max_concurrent = int(
-        os.getenv("MAX_CONCURRENT", "2")
-    )  # Default number of concurrent executions (default: 2)
-    model_name = os.getenv("MODEL_NAME", "gpt-4")  # Name of the model to use (default: gpt-4)
+    max_concurrent = int(os.getenv("MAX_CONCURRENT", "2"))
+    model_name = os.getenv("MODEL_NAME", "gpt-4")
 
     if not redis_url or not openai_api_key or not redis_encryption_key:
         raise ValueError(
             "REDIS_URL, OPENAI_API_KEY, REDIS_ENCRYPTION_KEY environment variables are required."
         )
 
-    # PDF file paths
     samples_dir = Path(__file__).parent.parent / "samples" / "text"
     pdf_files = sorted(samples_dir.glob("sample_invoice_*.pdf"))
 
     if not pdf_files:
         raise FileNotFoundError(f"PDF files not found: {samples_dir}")
 
-    # Display task information
     info_text = [
         "[bold cyan]PDF Processing Started (Asynchronous Processing)[/]",
         f"Files to process: [yellow]{', '.join(f.name for f in pdf_files)}[/]",
@@ -218,7 +208,6 @@ async def main():
     ]
     console.print(Panel("\n".join(info_text), title="Task Information", border_style="blue"))
 
-    # Initialize PDF processor (LLM processor is also initialized)
     processor = PDFProcessor(
         redis_url=redis_url,
         openai_api_key=openai_api_key,
@@ -229,10 +218,7 @@ async def main():
 
     worker_task = None
     try:
-        # Start worker
         worker_task = asyncio.create_task(processor.start_worker())
-
-        # Process PDF files
         await process_pdfs(processor, pdf_files)
 
     except Exception as e:
@@ -241,7 +227,6 @@ async def main():
         raise
 
     finally:
-        # Stop worker
         if worker_task:
             await processor.stop_worker()
             await worker_task

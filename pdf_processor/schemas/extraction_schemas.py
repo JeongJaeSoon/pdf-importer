@@ -1,6 +1,5 @@
 from typing import Any, Dict
 
-# PDF Analysis Data Extraction Schema
 PDF_ANALYZER_SCHEMA: Dict[str, Any] = {
     "type": "object",
     "properties": {
@@ -32,7 +31,6 @@ PDF_ANALYZER_SCHEMA: Dict[str, Any] = {
     "required": ["page_ranges"],
 }
 
-# Invoice Extraction Schema
 INVOICE_SCHEMA: Dict[str, Any] = {
     "type": "object",
     "properties": {

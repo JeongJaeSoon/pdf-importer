@@ -28,7 +28,6 @@ class PDFAnalyzer(BaseProcessor):
             For default splitting, reason is None
         """
         try:
-            # Open PDF file
             pdf_document = fitz.open(pdf_path)
             total_pages = len(pdf_document)
 
@@ -38,19 +37,16 @@ class PDFAnalyzer(BaseProcessor):
             if num_pages <= 0:
                 raise ValueError("Number of documents must be greater than 0.")
 
-            # Extract all text
             text = ""
             for page_num in range(total_pages):
                 page = pdf_document[page_num]
                 text += f"\n=== Page {page_num + 1} ===\n"  # 1-based page number
                 text += page.get_text()
 
-            # Generate prompt (including metadata)
             system_message = get_pdf_analysis_prompt(
                 total_pages=total_pages, num_pages=num_pages, metadata=metadata
             )
 
-            # Extract data using LLM
             result = await self.llm.extract_data(
                 pdf_path=pdf_path,
                 page_range=(0, total_pages - 1),
@@ -72,9 +68,7 @@ class PDFAnalyzer(BaseProcessor):
                     )  # No reason for default splitting
                     logger.info(f"Default split - Invoice {i+1}: Pages {start_page+1}-{end_page+1}")
             else:
-                # Use LLM analysis result (convert 1-based to 0-based)
                 for range_info in result["page_ranges"]:
-                    # Convert 1-based to 0-based and validate range
                     start_page = max(0, min(total_pages - 1, range_info["start_page"] - 1))
                     end_page = max(0, min(total_pages - 1, range_info["end_page"] - 1))
                     reason = range_info.get("reason", "No information")
@@ -85,7 +79,6 @@ class PDFAnalyzer(BaseProcessor):
                             f"Invoice page range: {start_page+1}-{end_page+1}\n" f"Reason: {reason}"
                         )
 
-                # Validate results
                 if len(page_ranges) != num_pages:
                     logger.warning(
                         "Number of invoices returned by LLM differs from expected. "

@@ -15,8 +15,6 @@ def _format_metadata(metadata: Optional[Dict] = None) -> str:
 
     formatted_lines = []
     for key, value in metadata.items():
-        # For list items, display with indentation
-        # For dictionaries, process recursively
         if isinstance(value, list):
             formatted_lines.append(f"{key}:")
             for item in value:

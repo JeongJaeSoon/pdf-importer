@@ -1,13 +1,20 @@
 from enum import Enum
 
+PACKAGE_BANNER = """
+██████╗ ██████╗ ███████╗    ██████╗ ██████╗  ██████╗  ██████╗███████╗███████╗███████╗ ██████╗ ██████╗ 
+██╔══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗██╔═══██╗██╔════╝██╔════╝██╔════╝██╔════╝██╔═══██╗██╔══██╗
+██████╔╝██║  ██║█████╗      ██████╔╝██████╔╝██║   ██║██║     █████╗  ███████╗███████╗██║   ██║██████╔╝
+██╔═══╝ ██║  ██║██╔══╝      ██╔═══╝ ██╔══██╗██║   ██║██║     ██╔══╝  ╚════██║╚════██║██║   ██║██╔══██╗
+██║     ██████╔╝██║         ██║     ██║  ██║╚██████╔╝╚██████╗███████╗███████║███████║╚██████╔╝██║  ██║
+╚═╝     ╚═════╝ ╚═╝         ╚═╝     ╚═╝  ╚═╝ ╚═════╝  ╚═════╝╚══════╝╚══════╝╚══════╝ ╚═════╝ ╚═╝  ╚═╝
+"""
+
 
 class PDFProcessType(str, Enum):
     """PDF Processing Types"""
 
-    INVOICE = "invoice"  # Invoice/Bill
-    RESUME = "resume"  # Resume/CV
-    CONTRACT = "contract"  # Contract
-    RECEIPT = "receipt"  # Receipt
+    INVOICE = "invoice"
+    RECEIPT = "receipt"
 
     @classmethod
     def values(cls) -> list[str]:
@@ -17,8 +24,8 @@ class PDFProcessType(str, Enum):
 class ProcessStep(str, Enum):
     """Processing Stages"""
 
-    ANALYSIS = "analysis"  # PDF Analysis Stage
-    EXTRACTION = "extraction"  # Data Extraction Stage
+    ANALYSIS = "analysis"
+    EXTRACTION = "extraction"
 
 
 class RedisKeys:
